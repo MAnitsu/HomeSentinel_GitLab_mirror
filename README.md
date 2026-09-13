@@ -1,93 +1,387 @@
 # Pi-hole Network Ad Blocking
 
+A self-hosted network-wide DNS filtering solution using **Raspberry Pi, Pi-hole, and Quad9 DNS**.
 
+The project provides centralized DNS-level ad and tracker blocking for devices connected to the home network, while also serving as a practical exercise in Linux administration, networking, DNS, Bash scripting, and infrastructure maintenance.
 
-## Getting started
+## Architecture
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
+```text
+                    Internet
+                       │
+                       ▼
+                ┌──────────────┐
+                │ TP-Link      │
+                │ Router       │
+                │ DHCP / DNS   │
+                └──────┬───────┘
+                       │
+              DNS queries sent
+                 to Pi-hole
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ Raspberry Pi    │
+              │ Raspberry Pi OS │
+              │                 │
+              │    Pi-hole      │
+              │   DNS Filter    │
+              └────────┬────────┘
+                       │
+                 Allowed DNS
+                       │
+                       ▼
+                  Quad9 DNS
+                       │
+                       ▼
+                   Internet
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/manitsu-group/pi-hole-network-ad-blocking.git
-git branch -M main
-git push -uf origin main
+
+### How it works
+
+1. Devices connect to the router as usual.
+2. The router advertises the Raspberry Pi as the network's DNS server through DHCP.
+3. DNS requests are received by Pi-hole.
+4. Pi-hole checks requested domains against configured blocklists.
+5. Blocked domains are rejected.
+6. Allowed requests are forwarded to the configured upstream DNS provider.
+7. Pi-hole provides statistics and query visibility through its web dashboard.
+
+## Hardware
+
+* Raspberry Pi 3B+
+* 64 GB MicroSD card
+* Power supply
+* Ethernet connection recommended
+* Router with DHCP configuration access
+
+Other Raspberry Pi models and storage devices can also be used.
+
+## Software
+
+* Raspberry Pi OS Lite 64-bit
+* Pi-hole
+* Quad9 DNS
+* Bash
+* SSH
+* Git
+
+## Setup
+
+### 1. Install Raspberry Pi OS
+
+Download and install **Raspberry Pi Imager**.
+
+Configure the image with:
+
+* Raspberry Pi OS Lite 64-bit
+* Hostname: `pi-hole`
+* A local username and password
+* SSH enabled
+* Network connectivity
+
+Flash the operating system to the MicroSD card and insert it into the Raspberry Pi.
+
+### 2. Connect to the Raspberry Pi
+
+After powering on the Raspberry Pi, connect through SSH:
+
+```bash
+ssh <username>@pi-hole.local
 ```
 
-## Integrate with your tools
+Update the operating system:
 
-* [Set up project integrations](https://gitlab.com/manitsu-group/pi-hole-network-ad-blocking/-/settings/integrations)
+```bash
+sudo apt update
+sudo apt full-upgrade
+sudo reboot
+```
 
-## Collaborate with your team
+### 3. Configure a Reserved IP
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+The Raspberry Pi acts as a network service, so its IP address should remain consistent.
 
-## Test and Deploy
+Create a DHCP address reservation for the Raspberry Pi in the router configuration.
 
-Use the built-in continuous integration in GitLab.
+For a TP-Link router:
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+```text
+Advanced
+└── Network
+    └── DHCP Server
+        └── Address Reservation
+```
 
-***
+Reserve the Raspberry Pi's address based on its connected device/MAC address.
 
-# Editing this README
+> Do not use the example IP address from this documentation. Use the address assigned to your own Raspberry Pi.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### 4. Install Pi-hole
 
-## Suggestions for a good README
+Connect to the Raspberry Pi through SSH and run the official Pi-hole installer.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+During installation:
 
-## Name
-Choose a self-explaining name for your project.
+* Select the network interface being used.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+  * `eth0` for Ethernet
+  * `wlan0` for Wi-Fi
+* Select an upstream DNS provider.
+* Enable the default blocklists.
+* Enable the web administration interface.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+After installation, open the Pi-hole dashboard:
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+```text
+http://<PI-HOLE-IP>/admin
+```
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### 5. Configure the Network DNS
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+The router needs to distribute the Raspberry Pi's IP address as the DNS server to connected devices.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+For a TP-Link router:
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+```text
+Advanced
+└── Network
+    └── DHCP Server
+        └── Primary DNS
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Set the Primary DNS to:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+```text
+<PI-HOLE-IP>
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+Reconnect devices or renew their DHCP leases so they receive the updated DNS configuration.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+### 6. Update Pi-hole Blocklists
 
-## License
-For open source projects, say how it is licensed.
+After configuring additional lists, refresh Pi-hole's Gravity database:
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+```bash
+sudo pihole updateGravity
+```
+
+Pi-hole will then use the updated blocklists when processing DNS queries.
+
+## Additional Blocklists
+
+The project uses the **Hagezi DNS Blocklists** as an optional additional source.
+
+The recommended approach is to select an appropriate list based on the desired balance between blocking and compatibility.
+
+For example:
+
+```text
+Hagezi Multi Pro
+```
+
+Add the selected list through:
+
+```text
+Pi-hole Dashboard
+└── Domains on Lists
+    └── Manage lists
+```
+
+After adding a list:
+
+```bash
+sudo pihole updateGravity
+```
+
+## Maintenance
+
+Pi-hole and the underlying operating system should be updated periodically.
+
+Manual maintenance:
+
+```bash
+sudo apt update
+sudo apt full-upgrade
+sudo pihole updatePihole
+sudo pihole updateGravity
+sudo reboot
+```
+
+## Automated Maintenance
+
+The project includes a Bash script to automate the maintenance process.
+
+`script/update.sh`:
+
+```bash
+#!/bin/bash
+
+set -e
+
+echo "Updating operating system..."
+sudo apt update
+sudo apt full-upgrade -y
+
+echo "Updating Pi-hole..."
+sudo pihole updatePihole
+
+echo "Updating Pi-hole blocklists..."
+sudo pihole updateGravity
+
+echo "Maintenance completed successfully."
+echo "Rebooting..."
+sudo reboot
+```
+
+Make the script executable:
+
+```bash
+chmod +x scripts/update.sh
+```
+
+Run it with:
+
+```bash
+./scripts/update.sh
+```
+
+> Rebooting automatically is optional. For a more robust implementation, the script can later be extended with logging, error handling, and a reboot flag.
+
+## Verification
+
+After configuring the network DNS, verify that clients are actually using Pi-hole.
+
+### Check the DNS configuration
+
+Linux:
+
+```bash
+resolvectl status
+```
+
+or:
+
+```bash
+cat /etc/resolv.conf
+```
+
+Windows:
+
+```powershell
+ipconfig /all
+```
+
+The configured DNS server should point to the Raspberry Pi.
+
+### Check Pi-hole
+
+Open the Pi-hole dashboard and verify that DNS queries are appearing.
+
+The dashboard provides visibility into:
+
+* Total DNS queries
+* Blocked queries
+* Block percentage
+* Frequently requested domains
+* Frequently blocked domains
+* Client activity
+
+### Test DNS resolution
+
+```bash
+nslookup example.com
+```
+
+The DNS server shown in the response should be the Raspberry Pi/Pi-hole address.
+
+## Troubleshooting
+
+### Devices are not using Pi-hole
+
+Check:
+
+1. The router's DHCP DNS configuration.
+2. The client's current DHCP lease.
+3. The client's configured DNS server.
+4. Whether the client has manually configured DNS.
+5. Whether IPv6 DNS configuration is bypassing the Pi-hole.
+
+### Pi-hole dashboard is unavailable
+
+Check that the Raspberry Pi is reachable:
+
+```bash
+ping <PI-HOLE-IP>
+```
+
+Check Pi-hole status:
+
+```bash
+pihole status
+```
+
+Check listening services:
+
+```bash
+sudo ss -lntup
+```
+
+### DNS stops working
+
+Check Pi-hole logs and DNS resolution:
+
+```bash
+pihole status
+```
+
+```bash
+nslookup example.com <PI-HOLE-IP>
+```
+
+If Pi-hole is unavailable, clients configured exclusively to use it as DNS may lose DNS resolution. This is an important availability consideration for a network-wide DNS service.
+
+## Security Considerations
+
+This project is intended for a private home network.
+
+Recommended practices:
+
+* Keep Raspberry Pi OS updated.
+* Keep Pi-hole updated.
+* Use SSH keys instead of password authentication where practical.
+* Do not expose the Pi-hole administration interface to the public internet.
+* Restrict router administration to the local network.
+* Use a strong Pi-hole administrator password.
+* Monitor DNS activity for unexpected behavior.
+* Keep backups of important configuration.
+
+## Future Improvements
+
+Planned improvements:
+
+* [ ] Add automated update script
+* [ ] Add structured logging
+* [ ] Add update failure handling
+* [ ] Add optional automatic reboot
+* [ ] Add health-check script
+* [ ] Monitor Pi-hole availability
+* [ ] Send alerts when DNS service becomes unavailable
+* [ ] Export Pi-hole metrics to a monitoring dashboard
+* [ ] Run the maintenance script automatically using `systemd` or cron
+* [ ] Add GitLab CI validation for Bash scripts
+* [ ] Document disaster recovery / SD-card replacement
+* [ ] Move the system to SSD storage for improved reliability
+
+## Skills Demonstrated
+
+**Linux:** Raspberry Pi OS, SSH, package management, services
+**Networking:** DHCP, DNS, IP reservation, network troubleshooting
+**Automation:** Bash scripting, maintenance automation, health checks
+**Infrastructure:** Self-hosted services, DNS filtering, service availability
+**Testing:** DNS verification, connectivity checks, service validation
+**DevOps:** Git, GitLab, scripting, automation, documentation
+
+## Disclaimer
+
+This project is designed for educational and personal home-network use. DNS filtering can occasionally block domains required by websites or applications. Blocklists should therefore be selected and maintained according to the network's requirements.
