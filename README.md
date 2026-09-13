@@ -373,15 +373,12 @@ Planned improvements:
 * [ ] Document disaster recovery / SD-card replacement
 * [ ] Move the system to SSD storage for improved reliability
 
-## Skills Demonstrated
-
-**Linux:** Raspberry Pi OS, SSH, package management, services
-**Networking:** DHCP, DNS, IP reservation, network troubleshooting
-**Automation:** Bash scripting, maintenance automation, health checks
-**Infrastructure:** Self-hosted services, DNS filtering, service availability
-**Testing:** DNS verification, connectivity checks, service validation
-**DevOps:** Git, GitLab, scripting, automation, documentation
-
 ## Disclaimer
 
 This project is designed for educational and personal home-network use. DNS filtering can occasionally block domains required by websites or applications. Blocklists should therefore be selected and maintained according to the network's requirements.
+
+## Author
+Mihai A. Nițu
+
+GitLab: https://gitlab.com/MAnitsu
+LinkedIn: https://www.linkedin.com/in/mihai-alexandru-nitu-b8035a16a/
