@@ -360,7 +360,7 @@ Recommended practices:
 
 Planned improvements:
 
-* [ ] Add automated update script
+* [x] Add automated update script
 * [ ] Add structured logging
 * [ ] Add update failure handling
 * [ ] Add optional automatic reboot
