@@ -361,14 +361,13 @@ Recommended practices:
 Planned improvements:
 
 * [x] Add automated update script
+* [ ] Run the maintenance script automatically using `systemd` or cron
 * [ ] Add structured logging
 * [ ] Add update failure handling
-* [ ] Add optional automatic reboot
 * [ ] Add health-check script
 * [ ] Monitor Pi-hole availability
-* [ ] Send alerts when DNS service becomes unavailable
 * [ ] Export Pi-hole metrics to a monitoring dashboard
-* [ ] Run the maintenance script automatically using `systemd` or cron
+* [ ] Send alerts using ntfy when DNS service becomes unavailable, system is updated using the automated script, a device connects on the network, something suspicios happens in the logs
 * [ ] Add GitLab CI validation for Bash scripts
 * [ ] Document disaster recovery / SD-card replacement
 * [ ] Move the system to SSD storage for improved reliability
