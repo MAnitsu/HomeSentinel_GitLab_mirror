@@ -1,4 +1,4 @@
-# Pi-hole Network Ad Blocking
+# HomeSentinel - A Pi-hole Network Ad Blocker
 
 A self-hosted network-wide DNS filtering solution using **Raspberry Pi, Pi-hole, and Quad9 DNS**.
 
