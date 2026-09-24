@@ -1,0 +1,19 @@
+[Unit]
+# Describes the purpose of this timer.
+Description=Run Pi-hole Network Maintenance Periodically
+
+[Timer]
+# Run maintenance every Sunday at approximately 03:00.
+OnCalendar=Sun 03:00
+
+# If the Raspberry Pi was powered off when the scheduled
+# maintenance should have occurred, run it after boot.
+Persistent=true
+
+# Add some randomness to the execution time.
+# This prevents the task from always starting at exactly 03:00.
+RandomizedDelaySec=30min
+
+[Install]
+# Start the timer automatically during normal system boot.
+WantedBy=timers.target

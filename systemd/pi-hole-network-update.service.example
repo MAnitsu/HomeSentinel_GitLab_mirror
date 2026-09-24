@@ -1,0 +1,16 @@
+[Unit]
+# Describes the purpose of the service.
+Description=Pi-hole Network Maintenance
+
+# Wait until the network is available before starting maintenance.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# The service runs a task and exits when the task is complete.
+Type=oneshot
+
+# Run the generic maintenance script.
+# Replace this path with the actual path to update.sh
+# when installing the service on a Raspberry Pi.
+ExecStart=/path/to/project/scripts/update.sh
