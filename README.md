@@ -2,7 +2,7 @@
 
 A self-hosted network-wide DNS filtering solution using **Raspberry Pi, Pi-hole, and Quad9 DNS**.
 
-The project provides centralized DNS-level ad and tracker blocking for devices connected to the home network, while also serving as a practical exercise in Linux administration, networking, DNS, Bash scripting, automation, and infrastructure maintenance.
+The project provides centralized DNS-level ad and tracker blocking for devices connected to the home network, while also serving as a practical exercise in Linux administration, networking, DNS, Bash scripting, automation, monitoring, systemd, and infrastructure maintenance.
 
 ---
 
@@ -111,13 +111,16 @@ The repository version remains generic, while the Raspberry Pi contains the actu
 HomeSentinel/
 ├── README.md
 ├── scripts/
+│   ├── health_check.sh.example
 │   └── update.sh
 └── systemd/
+    ├── pi-hole-network-health.service.example
+    ├── pi-hole-network-health.timer.example
     ├── pi-hole-network-update.service.example
     └── pi-hole-network-update.timer.example
 ```
 
-The project structure will grow as additional monitoring, dashboard, notification, remote-access, and CI/CD functionality is implemented.
+The project structure will grow as additional dashboard, notification, remote-access, and CI/CD functionality is implemented.
 
 ---
 
@@ -373,9 +376,122 @@ The script also records structured status information that can later be consumed
 
 ---
 
+# Health Monitoring
+
+HomeSentinel includes an automated health-check system for monitoring the Raspberry Pi, Pi-hole, DNS functionality, and basic system resources.
+
+The health check is implemented as a Bash script and executed through systemd.
+
+The current health-check process verifies:
+
+1. Internet connectivity.
+2. DNS resolution.
+3. Pi-hole FTL service status.
+4. Pi-hole DNS functionality.
+5. Pi-hole blocking functionality.
+6. Upstream DNS availability.
+7. Disk usage.
+8. Memory usage.
+9. CPU temperature.
+10. System uptime.
+
+The health check is designed to **run all checks even when one check fails**, allowing the final result to provide a complete picture of the system state.
+
+---
+
+## Health Check Script
+
+The reusable health-check script is provided as:
+
+```text
+scripts/health_check.sh.example
+```
+
+The `.example` version is intentionally generic and can be customized for a different Raspberry Pi/Pi-hole installation.
+
+The actual runtime script remains on the Raspberry Pi and is not committed as environment-specific runtime configuration.
+
+The script returns:
+
+```text
+0 = healthy
+1 = one or more checks failed
+```
+
+Example successful output:
+
+```text
+========================================
+Pi-hole Network Health Check
+Started: YYYY-MM-DD HH:MM:SS
+========================================
+
+Health checks:
+[PASS] Internet connectivity
+[PASS] DNS resolution
+[PASS] Pi-hole service
+[PASS] Pi-hole DNS
+[PASS] Pi-hole blocking
+[PASS] Upstream DNS
+[PASS] Disk usage: XX%
+[PASS] Memory usage: XX%
+[PASS] CPU temperature: XX°C
+[PASS] System uptime: up X hours
+
+========================================
+Health: OK
+Passed: 10
+Failed: 0
+```
+
+---
+
+## Health Check Logging
+
+The health-check script writes its output to:
+
+```text
+/var/log/pi-hole-network/health.log
+```
+
+The most recent health-check result is stored as structured JSON at:
+
+```text
+/var/lib/pi-hole-network/health.json
+```
+
+Example structure:
+
+```json
+{
+  "status": "ok",
+  "timestamp": "YYYY-MM-DDTHH:MM:SS+00:00",
+  "passed": 10,
+  "failed": 0,
+  "checks": {
+    "internet": "pass",
+    "dns": "pass",
+    "pihole_service": "pass",
+    "pihole_dns": "pass",
+    "pihole_blocking": "pass",
+    "upstream_dns": "pass",
+    "disk": "pass",
+    "memory": "pass",
+    "temperature": "pass",
+    "uptime": "pass"
+  }
+}
+```
+
+The JSON result is intended to provide a machine-readable source for future dashboard and notification components.
+
+Runtime logs and result files remain on the Raspberry Pi and should not be committed to GitLab.
+
+---
+
 # systemd Automation
 
-systemd is used instead of cron for scheduled maintenance.
+systemd is used instead of cron for scheduled maintenance and health monitoring.
 
 This allows the project to take advantage of:
 
@@ -387,25 +503,61 @@ This allows the project to take advantage of:
 * failure detection
 * timer scheduling
 * persistent timers
-* randomized execution delays
+* randomized execution delays where appropriate
 
-The repository contains generic example files:
+The repository contains generic example files for both maintenance and health monitoring:
 
 ```text
 systemd/
+├── pi-hole-network-health.service.example
+├── pi-hole-network-health.timer.example
 ├── pi-hole-network-update.service.example
 └── pi-hole-network-update.timer.example
 ```
 
 ---
 
-## systemd Service
+## systemd Service Model
 
-The service is responsible for executing the maintenance script.
+The project uses `Type=oneshot` services.
+
+A oneshot service starts, performs its task, and exits when the task is complete.
+
+This is appropriate for both maintenance and health checks because neither process needs to remain running continuously.
+
+The general architecture is:
+
+```text
+systemd timer
+      │
+      ▼
+systemd service
+      │
+      ▼
+Bash script
+      │
+      ├── Perform checks / maintenance
+      │
+      └── Record result + logs
+```
+
+---
+
+# systemd Maintenance Automation
+
+The maintenance service executes:
+
+```text
+scripts/update.sh
+```
 
 Conceptually:
 
 ```text
+systemd timer
+      │
+      │ scheduled
+      ▼
 systemd service
       │
       ▼
@@ -419,35 +571,11 @@ scripts/update.sh
        Result + log
 ```
 
-The service is a `Type=oneshot` service, meaning it starts, performs the maintenance operation, and exits when the operation is complete.
-
-The service does not remain running continuously.
+The maintenance timer currently runs approximately every Sunday at 03:00, with a randomized delay.
 
 ---
 
-## systemd Timer
-
-The timer controls when the maintenance service runs.
-
-The current schedule is:
-
-```text
-Every Sunday at approximately 03:00
-```
-
-A randomized delay is used so the task does not necessarily start at exactly the same second every week.
-
-The timer also uses:
-
-```ini
-Persistent=true
-```
-
-This means that if the Raspberry Pi is powered off when the scheduled execution occurs, systemd can run the missed task when the system becomes available again.
-
----
-
-# Installing the systemd Maintenance Automation
+## Installing the systemd Maintenance Automation
 
 Copy the generic service and timer examples to the systemd directory:
 
@@ -505,6 +633,154 @@ systemctl list-timers --all
 
 ---
 
+# systemd Health Monitoring
+
+The health monitoring service executes:
+
+```text
+scripts/health_check.sh
+```
+
+The service waits for the network to become available before running the health check.
+
+Conceptually:
+
+```text
+systemd health timer
+          │
+          │ every 15 minutes
+          ▼
+systemd health service
+          │
+          ▼
+scripts/health_check.sh
+          │
+     ┌────┴───────────────┐
+     ▼                    ▼
+Health checks       JSON result
+     │
+     ▼
+health.log
+```
+
+The health-check timer is configured to:
+
+* Run once shortly after boot.
+* Run every 15 minutes after the service has completed.
+* Use `Persistent=true` so missed executions can be handled after downtime.
+
+---
+
+## Installing the systemd Health Monitoring
+
+Copy the generic service and timer examples:
+
+```bash
+sudo cp systemd/pi-hole-network-health.service.example \
+    /etc/systemd/system/pi-hole-network-health.service
+
+sudo cp systemd/pi-hole-network-health.timer.example \
+    /etc/systemd/system/pi-hole-network-health.timer
+```
+
+Edit the service:
+
+```bash
+sudo nano /etc/systemd/system/pi-hole-network-health.service
+```
+
+Change:
+
+```ini
+ExecStart=/path/to/project/scripts/health_check.sh
+```
+
+to the actual location of the script on the Raspberry Pi.
+
+For example:
+
+```ini
+ExecStart=/home/<username>/scripts/health_check.sh
+```
+
+Reload systemd:
+
+```bash
+sudo systemctl daemon-reload
+```
+
+Enable and start the health-check timer:
+
+```bash
+sudo systemctl enable --now pi-hole-network-health.timer
+```
+
+Verify the timer:
+
+```bash
+systemctl status pi-hole-network-health.timer
+```
+
+Expected state:
+
+```text
+Active: active (waiting)
+```
+
+List the timer:
+
+```bash
+systemctl list-timers --all | grep pi-hole-network-health
+```
+
+---
+
+# Health Monitoring Commands
+
+Manually run the health-check service:
+
+```bash
+sudo systemctl start pi-hole-network-health.service
+```
+
+Check the service:
+
+```bash
+systemctl status pi-hole-network-health.service
+```
+
+View the health-check journal:
+
+```bash
+journalctl -u pi-hole-network-health.service --no-pager
+```
+
+Check the latest structured result:
+
+```bash
+jq . /var/lib/pi-hole-network/health.json
+```
+
+View the persistent health log:
+
+```bash
+cat /var/log/pi-hole-network/health.log
+```
+
+Check the scheduled timer:
+
+```bash
+systemctl status pi-hole-network-health.timer
+```
+
+List all timers:
+
+```bash
+systemctl list-timers --all
+```
+
+---
+
 # Maintenance Logs
 
 The maintenance script stores its complete log at:
@@ -527,40 +803,6 @@ FAILURE
 ```
 
 These files are local runtime data and should not be committed to GitLab.
-
----
-
-# systemd Maintenance Commands
-
-Manually start the maintenance service:
-
-```bash
-sudo systemctl start pi-hole-network-update.service
-```
-
-Check the service status:
-
-```bash
-sudo systemctl status pi-hole-network-update.service
-```
-
-View the service journal:
-
-```bash
-sudo journalctl -u pi-hole-network-update.service
-```
-
-Check the timer:
-
-```bash
-systemctl status pi-hole-network-update.timer
-```
-
-List all timers:
-
-```bash
-systemctl list-timers --all
-```
 
 ---
 
@@ -604,19 +846,49 @@ Expected successful result:
 SUCCESS
 ```
 
-### systemd timer
+### Health check
+
+```bash
+sudo ./scripts/health_check.sh
+```
+
+Expected successful result:
+
+```text
+Health: OK
+Passed: 10
+Failed: 0
+```
+
+### Health JSON
+
+```bash
+jq . /var/lib/pi-hole-network/health.json
+```
+
+### Maintenance timer
 
 ```bash
 systemctl status pi-hole-network-update.timer
 ```
 
-### Scheduled execution
+### Health timer
+
+```bash
+systemctl status pi-hole-network-health.timer
+```
+
+Both timers should appear as:
+
+```text
+Active: active (waiting)
+```
+
+### Scheduled executions
 
 ```bash
 systemctl list-timers --all
 ```
-
-The timer should appear as active and waiting for its next scheduled execution.
 
 ---
 
@@ -654,6 +926,30 @@ Verify the configured upstream DNS provider.
 
 ---
 
+## Health check reports a failure
+
+Run the health check manually:
+
+```bash
+sudo ./scripts/health_check.sh
+```
+
+Then inspect the structured result:
+
+```bash
+jq . /var/lib/pi-hole-network/health.json
+```
+
+Check the systemd journal:
+
+```bash
+journalctl -u pi-hole-network-health.service --no-pager
+```
+
+The JSON result identifies which individual checks passed or failed.
+
+---
+
 ## Maintenance service fails
 
 Check the service:
@@ -676,12 +972,12 @@ cat /var/log/pi-hole-network/update.log
 
 ---
 
-## Timer does not appear to run
+## Health timer does not appear to run
 
 Check:
 
 ```bash
-systemctl status pi-hole-network-update.timer
+systemctl status pi-hole-network-health.timer
 ```
 
 Then:
@@ -699,7 +995,7 @@ sudo systemctl daemon-reload
 Then restart the timer:
 
 ```bash
-sudo systemctl restart pi-hole-network-update.timer
+sudo systemctl restart pi-hole-network-health.timer
 ```
 
 ---
@@ -745,6 +1041,10 @@ The current system consists of:
                   │                 │
                   │    Pi-hole      │
                   │      DNS        │
+                  │                 │
+                  │ Health Monitor  │
+                  │                 │
+                  │ Maintenance     │
                   └────────┬────────┘
                            │
                            │ Allowed queries
@@ -757,24 +1057,24 @@ The current system consists of:
                        Internet
 ```
 
-Maintenance automation runs locally on the Raspberry Pi:
+Maintenance and health monitoring run locally on the Raspberry Pi:
 
 ```text
-                 systemd timer
-                       │
-                       │ scheduled
-                       ▼
-              systemd service
-                       │
-                       ▼
-              scripts/update.sh
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-      APT update   Pi-hole      Gravity
-                       │
-                       ▼
-                 Result + log
+                    Raspberry Pi
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+              ▼                     ▼
+       Maintenance Timer      Health Timer
+              │                     │
+              ▼                     ▼
+       Maintenance Service    Health Service
+              │                     │
+              ▼                     ▼
+         update.sh            health_check.sh
+              │                     │
+              ▼                     ▼
+        Result + Log          JSON + Log
 ```
 
 ---
@@ -811,19 +1111,22 @@ Maintenance automation runs locally on the Raspberry Pi:
 
 ### Health Monitoring
 
-* [ ] Health-check script
-* [ ] DNS resolution monitoring
-* [ ] Pi-hole service monitoring
-* [ ] Pi-hole DNS functionality monitoring
-* [ ] Pi-hole blocking verification
-* [ ] Internet connectivity monitoring
-* [ ] Disk usage monitoring
-* [ ] Memory usage monitoring
-* [ ] CPU monitoring
-* [ ] Temperature monitoring
-* [ ] Health status result file
-* [ ] systemd health-check service
-* [ ] systemd health-check timer
+* [x] Health-check script
+* [x] DNS resolution monitoring
+* [x] Pi-hole service monitoring
+* [x] Pi-hole DNS functionality monitoring
+* [x] Pi-hole blocking verification
+* [x] Internet connectivity monitoring
+* [x] Upstream DNS monitoring
+* [x] Disk usage monitoring
+* [x] Memory usage monitoring
+* [x] CPU temperature monitoring
+* [x] System uptime monitoring
+* [x] Health status result file
+* [x] Structured JSON health result
+* [x] Persistent health-check logging
+* [x] systemd health-check service
+* [x] systemd health-check timer
 
 ### Dashboard
 
@@ -844,6 +1147,7 @@ Maintenance automation runs locally on the Raspberry Pi:
 * [ ] Pi-hole administration link
 * [ ] Manual health-check action
 * [ ] Manual maintenance action
+* [ ] Manual Raspberry Pi reboot action
 
 ---
 
@@ -988,9 +1292,7 @@ As HomeSentinel grows, the planned architecture will become:
                       │      Homepage       │
                       │     Dashboard       │
                       │                     │
-                      │    Monitoring       │
-                      │                     │
-                      │   Health Checks     │
+                      │    Health Checks    │
                       │                     │
                       │   Maintenance       │
                       │                     │
@@ -1042,33 +1344,38 @@ The repository should demonstrate the architecture and implementation without ex
 
 **Phase 2 — Maintenance Automation:** Complete
 
-**Phase 2 — Health Monitoring:** Next
+**Phase 2 — Health Monitoring:** Complete
 
-The next implementation milestone is the creation of:
+**Phase 2 — Dashboard:** Next
 
-```text
-scripts/health_check.sh
-```
+The next implementation milestone is the installation and configuration of **Homepage** as the self-hosted dashboard.
 
-The health check will verify:
+The dashboard will eventually provide:
 
 ```text
-Pi-hole Network Health Check
-============================
-[PASS] Internet connectivity
-[PASS] DNS resolution
-[PASS] Pi-hole service
-[PASS] Pi-hole DNS
-[PASS] Pi-hole blocking
-[PASS] Quad9 upstream DNS
-[PASS] Disk usage
-[PASS] Memory usage
-[PASS] CPU / temperature
-
-Health: OK
+Raspberry Pi
+     │
+     ├── CPU
+     ├── RAM
+     ├── Temperature
+     ├── Disk
+     ├── Uptime
+     ├── Network
+     │
+     ├── Pi-hole status
+     ├── Pi-hole statistics
+     │
+     ├── Health status
+     ├── Last health check
+     ├── Last maintenance
+     │
+     └── Controlled actions
+           ├── Run health check
+           ├── Run maintenance
+           └── Reboot Pi
 ```
 
-The resulting health status will later become the foundation for the Homepage dashboard and notification system.
+The health-monitoring system is now the foundation for the dashboard and future notification system.
 
 ---
 
@@ -1077,7 +1384,9 @@ The resulting health status will later become the foundation for the Homepage da
 This project is designed for educational and personal home-network use. DNS filtering can occasionally block domains required by websites or applications. Blocklists should therefore be selected and maintained according to the network's requirements.
 
 ## Author
+
 Mihai A. Nițu
 
 GitLab: https://gitlab.com/MAnitsu
-LinkedIn: https://www.linkedin.com/in/mihai-alexandru-nitu-b8035a16a/
+
+LinkedIn: https://www.linkedin.com/in/mihai-alexandru-nitu-b8035a16/
