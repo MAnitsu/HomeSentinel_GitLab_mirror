@@ -1,0 +1,8 @@
+[Unit]
+Description=Pi-hole Network Health Check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/path/to/project/scripts/health_check.sh

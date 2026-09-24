@@ -1,0 +1,203 @@
+#!/bin/bash
+
+# Use unset-variable checking without stopping the script on individual
+# health-check failures. This allows all checks to run and produce a summary.
+set -u
+
+# Directory and file used for persistent health-check logs.
+LOG_DIR="/var/log/pi-hole-network"
+LOG_FILE="$LOG_DIR/health.log"
+
+# Directory and file used to store the latest health-check result as JSON.
+RESULT_DIR="/var/lib/pi-hole-network"
+RESULT_FILE="$RESULT_DIR/health.json"
+
+# Health thresholds.
+DISK_THRESHOLD=80
+MEMORY_THRESHOLD=80
+TEMPERATURE_THRESHOLD=70
+
+# Create the required runtime directories if they do not already exist.
+mkdir -p "$LOG_DIR"
+mkdir -p "$RESULT_DIR"
+
+# Send all script output to both the terminal and the persistent log file.
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+# Display the health-check header.
+echo "========================================"
+echo "Pi-hole Network Health Check"
+echo "Started: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "========================================"
+
+# Counters used to build the final health summary.
+PASS_COUNT=0
+FAIL_COUNT=0
+
+# Variables used to dynamically build the "checks" section of the JSON result.
+CHECK_RESULTS=""
+CHECK_SEPARATOR=""
+
+# Record a successful health check.
+# $1 = human-readable description
+# $2 = JSON field name
+pass() {
+    echo "[PASS] $1"
+
+    PASS_COUNT=$((PASS_COUNT + 1))
+
+    CHECK_RESULTS="${CHECK_RESULTS}${CHECK_SEPARATOR}
+  \"$2\": \"pass\""
+
+    CHECK_SEPARATOR=","
+}
+
+# Record a failed health check.
+# $1 = human-readable description
+# $2 = JSON field name
+fail() {
+    echo "[FAIL] $1"
+
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+
+    CHECK_RESULTS="${CHECK_RESULTS}${CHECK_SEPARATOR}
+  \"$2\": \"fail\""
+
+    CHECK_SEPARATOR=","
+}
+
+echo
+echo "Health checks:"
+
+# Check whether the system can reach the Internet.
+# A public DNS IP is used only as a connectivity target.
+if ping -c 2 -W 2 1.1.1.1 > /dev/null 2>&1; then
+    pass "Internet connectivity" "internet"
+else
+    fail "Internet connectivity" "internet"
+fi
+
+# Check whether DNS resolution is working through the system resolver.
+if getent hosts example.com > /dev/null 2>&1; then
+    pass "DNS resolution" "dns"
+else
+    fail "DNS resolution" "dns"
+fi
+
+# Check whether the Pi-hole FTL service is currently running.
+if systemctl is-active --quiet pihole-FTL; then
+    pass "Pi-hole service" "pihole_service"
+else
+    fail "Pi-hole service" "pihole_service"
+fi
+
+# Query Pi-hole directly through localhost to verify that its DNS service
+# is accepting and resolving DNS requests.
+if dig @127.0.0.1 example.com +short > /dev/null 2>&1; then
+    pass "Pi-hole DNS" "pihole_dns"
+else
+    fail "Pi-hole DNS" "pihole_dns"
+fi
+
+# Verify that Pi-hole is actually blocking a known advertising domain.
+# The expected response depends on the configured Pi-hole blocking behaviour.
+BLOCKED_IP=$(dig @127.0.0.1 doubleclick.net A +short)
+
+if [ "$BLOCKED_IP" = "0.0.0.0" ]; then
+    pass "Pi-hole blocking" "pihole_blocking"
+else
+    fail "Pi-hole blocking" "pihole_blocking"
+fi
+
+# Verify that the configured upstream DNS server is reachable
+# and can resolve DNS queries directly.
+#
+# Replace the server below with the upstream DNS provider configured
+# for the local Pi-hole installation.
+UPSTREAM_DNS="1.1.1.1"
+
+if dig @"$UPSTREAM_DNS" example.com +short > /dev/null 2>&1; then
+    pass "Upstream DNS" "upstream_dns"
+else
+    fail "Upstream DNS" "upstream_dns"
+fi
+
+# Check root filesystem usage.
+# The check fails when disk usage reaches the configured threshold.
+DISK_USAGE=$(df -P / | awk 'NR==2 {gsub("%",""); print $5}')
+
+if [ "$DISK_USAGE" -lt "$DISK_THRESHOLD" ]; then
+    pass "Disk usage: ${DISK_USAGE}%" "disk"
+else
+    fail "Disk usage: ${DISK_USAGE}%" "disk"
+fi
+
+# Calculate memory usage from /proc/meminfo.
+# MemAvailable is subtracted from total memory to estimate used memory.
+MEM_TOTAL=$(awk '/MemTotal:/ {print $2}' /proc/meminfo)
+MEM_AVAILABLE=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
+
+MEM_USED=$((MEM_TOTAL - MEM_AVAILABLE))
+MEM_USAGE=$((MEM_USED * 100 / MEM_TOTAL))
+
+# The check fails when memory usage reaches the configured threshold.
+if [ "$MEM_USAGE" -lt "$MEMORY_THRESHOLD" ]; then
+    pass "Memory usage: ${MEM_USAGE}%" "memory"
+else
+    fail "Memory usage: ${MEM_USAGE}%" "memory"
+fi
+
+# Read the CPU temperature from the Linux thermal subsystem.
+# The value is provided in millidegrees Celsius, so convert it to Celsius.
+TEMP_MILLI=$(cat /sys/class/thermal/thermal_zone0/temp)
+TEMP_C=$((TEMP_MILLI / 1000))
+
+# The check fails when CPU temperature reaches the configured threshold.
+if [ "$TEMP_C" -lt "$TEMPERATURE_THRESHOLD" ]; then
+    pass "CPU temperature: ${TEMP_C}°C" "temperature"
+else
+    fail "CPU temperature: ${TEMP_C}°C" "temperature"
+fi
+
+# Record system uptime as an informational health check.
+UPTIME=$(uptime -p)
+
+pass "System uptime: $UPTIME" "uptime"
+
+echo
+echo "========================================"
+
+# Determine the overall health status from the number of failed checks.
+if [ "$FAIL_COUNT" -eq 0 ]; then
+    HEALTH_STATUS="ok"
+    echo "Health: OK"
+else
+    HEALTH_STATUS="failed"
+    echo "Health: FAILED"
+fi
+
+echo "Passed: $PASS_COUNT"
+echo "Failed: $FAIL_COUNT"
+
+# Save the latest health-check result as structured JSON.
+# This file can later be consumed by dashboards, APIs, monitoring tools,
+# notification scripts, or other automation.
+cat > "$RESULT_FILE" <<EOF
+{
+  "status": "$HEALTH_STATUS",
+  "timestamp": "$(date --iso-8601=seconds)",
+  "passed": $PASS_COUNT,
+  "failed": $FAIL_COUNT,
+  "checks": {
+$CHECK_RESULTS
+  }
+}
+EOF
+
+# Return a meaningful exit code so systemd and future automation can detect
+# whether the health check completed successfully or detected a failure.
+if [ "$FAIL_COUNT" -eq 0 ]; then
+    exit 0
+else
+    exit 1
+fi
