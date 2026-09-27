@@ -1,0 +1,24 @@
+[Unit]
+Description=HomeSentinel API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Replace <USERNAME> with the Linux user that runs
+# the HomeSentinel API.
+User=<USERNAME>
+Group=<USERNAME>
+
+# Replace the path with the API installation directory.
+WorkingDirectory=/path/to/homesentinel-api
+
+# Use the virtual environment created for the API.
+ExecStart=/path/to/homesentinel-api/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

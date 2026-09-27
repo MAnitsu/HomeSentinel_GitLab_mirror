@@ -1,0 +1,11 @@
+# HomeSentinel API restricted sudo permissions.
+#
+# Replace <USERNAME> with the Linux user that runs the
+# HomeSentinel API service.
+#
+# These rules intentionally allow only the specific system
+# actions required by the API.
+
+<USERNAME> ALL=(root) NOPASSWD: /usr/bin/systemctl start pi-hole-network-health.service
+<USERNAME> ALL=(root) NOPASSWD: /usr/bin/systemctl start pi-hole-network-update.service
+<USERNAME> ALL=(root) NOPASSWD: /usr/local/bin/homesentinel-reboot

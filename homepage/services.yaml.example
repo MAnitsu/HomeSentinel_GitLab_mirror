@@ -1,0 +1,57 @@
+---
+# HomeSentinel service definitions.
+# Replace <PI-IP> with the local IP address of the Raspberry Pi.
+# Keep environment-specific addresses and credentials out of Git.
+
+- Network Services:
+    - Pi-hole:
+        href: http://pi.hole/admin
+        description: Network-wide DNS filtering
+        icon: pi-hole.png
+        widget:
+            type: pihole
+            url: http://pi.hole
+            version: 6
+            key: "{{HOMEPAGE_VAR_PIHOLE_PASSWORD}}"
+
+- HomeSentinel:
+    - Health Monitor:
+        href: http://<PI-IP>:8000/health
+        description: HomeSentinel system health
+        icon: mdi-heart-pulse
+        widget:
+            type: customapi
+            url: http://host.docker.internal:8000/health
+            refreshInterval: 30000
+            mappings:
+                - field: status
+                  label: Status
+                - field: passed
+                  label: Passed
+                  format: number
+                - field: failed
+                  label: Failed
+                  format: number
+                - field: timestamp
+                  label: Last Check
+                  format: date
+
+    - Maintenance:
+        href: http://<PI-IP>:8000/maintenance
+        description: Latest maintenance run
+        icon: mdi-update
+        widget:
+            type: customapi
+            url: http://host.docker.internal:8000/maintenance
+            refreshInterval: 30000
+            mappings:
+                - field: status
+                  label: Status
+                - field: timestamp
+                  label: Last Run
+                  format: date
+
+    - Control Panel:
+        href: http://<PI-IP>:8000/control
+        description: HomeSentinel system controls
+        icon: mdi-console

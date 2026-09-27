@@ -1,0 +1,12 @@
+---
+# Homepage layout configuration.
+# Service cards are arranged horizontally within each section.
+
+layout:
+  Network Services:
+    style: row
+    columns: 3
+
+  HomeSentinel:
+    style: row
+    columns: 3

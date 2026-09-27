@@ -1,1387 +1,408 @@
-# HomeSentinel - A Pi-hole Network Ad Blocker
+# HomeSentinel — Self-Hosted Home Network Monitoring
 
-A self-hosted network-wide DNS filtering solution using **Raspberry Pi, Pi-hole, and Quad9 DNS**.
+HomeSentinel is a self-hosted home-network infrastructure project built around a **Raspberry Pi, Pi-hole, automated monitoring, a local REST API, and a web dashboard**.
 
-The project provides centralized DNS-level ad and tracker blocking for devices connected to the home network, while also serving as a practical exercise in Linux administration, networking, DNS, Bash scripting, automation, monitoring, systemd, and infrastructure maintenance.
+The project combines network-wide DNS filtering with infrastructure automation and monitoring. It is designed as a practical environment for developing skills in **Linux administration, networking, DNS, Bash, Python, REST APIs, systemd, Docker, monitoring, and CI/CD**.
+
+The Raspberry Pi contains the actual deployment and environment-specific configuration, while GitLab contains generic and reusable project components.
+
+---
+
+## Features
+
+* Network-wide DNS filtering with Pi-hole
+* Additional DNS blocklists
+* Automated system and Pi-hole maintenance
+* Automated infrastructure health monitoring
+* Structured JSON health results
+* Persistent monitoring and maintenance logs
+* systemd services and timers
+* Local FastAPI infrastructure API
+* Homepage web dashboard
+* Docker-based dashboard deployment
+* Controlled health-check and maintenance actions
+* Controlled Raspberry Pi reboot
+* Least-privilege sudo configuration
+* Generic configuration templates for GitLab
+* Separation between source code and private runtime configuration
 
 ---
 
 ## Architecture
 
 ```text
-                    Internet
-                       │
-                       ▼
-                ┌──────────────┐
-                │ TP-Link      │
-                │ Router       │
-                │ DHCP / DNS   │
-                └──────┬───────┘
-                       │
-              DNS queries sent
-                 to Pi-hole
-                       │
-                       ▼
-              ┌─────────────────┐
-              │ Raspberry Pi    │
-              │ Raspberry Pi OS │
-              │                 │
-              │    Pi-hole      │
-              │   DNS Filter    │
-              └────────┬────────┘
-                       │
-                 Allowed DNS
-                       │
-                       ▼
-                  Quad9 DNS
-                       │
-                       ▼
-                   Internet
+                         Internet
+                            │
+                            ▼
+                     ┌─────────────┐
+                     │   Router    │
+                     │ DHCP / LAN  │
+                     └──────┬──────┘
+                            │
+                     DNS requests
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │    Raspberry Pi     │
+                 │                     │
+                 │      Pi-hole        │
+                 │       DNS           │
+                 │                     │
+                 │   HomeSentinel      │
+                 │                     │
+                 │   Health Checks     │
+                 │   Maintenance      │
+                 │   FastAPI           │
+                 │   Homepage         │
+                 └──────────┬──────────┘
+                            │
+                     Allowed DNS
+                            │
+                            ▼
+                      Upstream DNS
+                            │
+                            ▼
+                         Internet
 ```
 
-### Request flow
+### Monitoring flow
 
-1. Devices connect to the home network through the router.
-2. The router advertises the Raspberry Pi as the DNS server through DHCP.
-3. DNS queries are sent to Pi-hole.
-4. Pi-hole checks each domain against its configured blocklists.
-5. Blocked domains are rejected.
-6. Allowed DNS queries are forwarded to Quad9.
-7. The requested service is reached through the internet.
+```text
+systemd timer
+      │
+      ▼
+health_check.sh
+      │
+      ▼
+health.json
+      │
+      ▼
+HomeSentinel API
+      │
+      ▼
+Homepage Dashboard
+```
+
+### Maintenance flow
+
+```text
+systemd timer
+      │
+      ▼
+update.sh
+      │
+      ├── APT
+      ├── Pi-hole
+      └── Gravity / blocklists
+              │
+              ▼
+        Result + logs
+```
 
 ---
 
-## Project Goals
+## Technology Stack
 
-The main goals of HomeSentinel are:
+| Area                  | Technology                  |
+| --------------------- | --------------------------- |
+| Hardware              | Raspberry Pi 3B+            |
+| Operating system      | Raspberry Pi OS Lite 64-bit |
+| DNS filtering         | Pi-hole                     |
+| Blocklists            | Hagezi DNS Blocklists       |
+| Scripting             | Bash                        |
+| API                   | Python / FastAPI            |
+| API server            | Uvicorn                     |
+| Scheduling            | systemd                     |
+| Dashboard             | Homepage                    |
+| Containers            | Docker                      |
+| Remote administration | SSH                         |
+| Version control       | Git / GitLab                |
+| Future remote access  | Tailscale                   |
+| Future notifications  | ntfy                        |
+| Future CI/CD          | GitLab CI                   |
 
-* Learn and demonstrate Linux administration.
-* Build a network-wide DNS filtering solution.
-* Understand DNS resolution and upstream DNS providers.
-* Automate routine system maintenance.
-* Monitor the health of the Raspberry Pi and Pi-hole.
-* Build a self-hosted dashboard.
-* Implement secure remote access.
-* Add notifications for important failures.
-* Validate reusable scripts and configuration through GitLab CI/CD.
-* Create a practical infrastructure project suitable for a technical portfolio.
+---
+
+## HomeSentinel API
+
+The local API provides a controlled interface between the monitoring system and the dashboard.
+
+Current endpoints:
+
+```text
+GET  /health
+POST /health
+
+GET  /maintenance
+POST /update
+
+POST /reboot
+
+GET  /control
+```
+
+The API reads structured monitoring results and can trigger predefined infrastructure actions.
+
+Privileged operations do **not** receive unrestricted sudo access. The API is allowed to execute only specific systemd services and a dedicated reboot wrapper.
+
+---
+
+## Dashboard
+
+Homepage provides the main monitoring interface.
+
+Current sections include:
+
+```text
+Homepage
+│
+├── System
+│   ├── CPU
+│   ├── Memory
+│   ├── Disk
+│   ├── Temperature
+│   └── Uptime
+│
+├── Network Services
+│   └── Pi-hole
+│
+└── HomeSentinel
+    ├── Health Monitor
+    ├── Maintenance
+    └── Control Panel
+```
+
+The HomeSentinel cards are arranged horizontally for a compact dashboard layout.
+
+The **Control Panel** provides controlled actions such as:
+
+* Running a health check
+* Running maintenance
+* Rebooting the Raspberry Pi
+
+---
+
+## Repository Structure
+
+```text
+HomeSentinel/
+├── README.md
+│
+├── api/
+│   ├── main.py
+│   └── requirements.txt
+│
+├── homepage/
+│   ├── compose.yaml.example
+│   ├── services.yaml.example
+│   ├── settings.yaml.example
+│   └── widgets.yaml.example
+│
+├── scripts/
+│   ├── health_check.sh.example
+│   ├── homesentinel-reboot.example
+│   └── update.sh
+│
+├── systemd/
+│   ├── homesentinel-api.service.example
+│   ├── homesentinel-api-sudoers.example
+│   ├── pi-hole-network-health.service.example
+│   ├── pi-hole-network-health.timer.example
+│   ├── pi-hole-network-update.service.example
+│   └── pi-hole-network-update.timer.example
+│
+└── docs/
+    ├── architecture.md
+    ├── setup.md
+    ├── operations.md
+    ├── security.md
+    └── roadmap.md
+```
+
+The repository contains reusable source code, scripts, systemd templates, Docker/Homepage configuration templates, and documentation.
 
 ---
 
 ## Repository vs Raspberry Pi
 
-The GitLab repository contains **generic and reusable project components**.
+The GitLab repository is intentionally separated from the actual home-network deployment.
 
-The Raspberry Pi contains the **environment-specific configuration, installed systemd units, and runtime data**.
+### GitLab contains
 
-The repository should **not** contain:
+* Generic scripts
+* API source code
+* Configuration templates
+* systemd templates
+* Docker/Homepage templates
+* Documentation
+* Tests and CI/CD configuration as the project evolves
 
+### Raspberry Pi contains
+
+* Actual usernames
 * Private IP addresses
-* Local usernames
-* Passwords or credentials
-* Authentication tokens
-* Machine-specific paths
-* Local logs
-* Runtime result files
-* Router-specific private configuration
-* Personal network information
-* Tailscale authentication data
-* Environment-specific secrets
+* Local filesystem paths
+* Passwords
+* API credentials
+* Runtime configuration
+* Logs
+* Health and maintenance result files
+* Private network information
 
-Example systemd files are stored in the repository using the `.example` extension.
-
-For example:
-
-```text
-GitLab repository
-    │
-    │ copy and customize
-    ▼
-Raspberry Pi
-/etc/systemd/system/
-```
-
-The repository version remains generic, while the Raspberry Pi contains the actual local configuration.
+Environment-specific configuration should never be committed to GitLab.
 
 ---
 
-## Project Structure
+## Project Status
 
-```text
-HomeSentinel/
-├── README.md
-├── scripts/
-│   ├── health_check.sh.example
-│   └── update.sh
-└── systemd/
-    ├── pi-hole-network-health.service.example
-    ├── pi-hole-network-health.timer.example
-    ├── pi-hole-network-update.service.example
-    └── pi-hole-network-update.timer.example
-```
+### Phase 1 — Network Foundation
 
-The project structure will grow as additional dashboard, notification, remote-access, and CI/CD functionality is implemented.
+**Complete**
 
----
-
-# Hardware
-
-Current hardware:
-
-* Raspberry Pi 3B+
-* 64 GB microSD card
-* Raspberry Pi power supply
-* Ethernet connection
-* Home router with DHCP configuration access
-
-Other Raspberry Pi models and storage devices can be used.
-
-An SSD is planned as a future reliability improvement.
-
----
-
-# Software
-
-Current software stack:
-
-* Raspberry Pi OS Lite 64-bit
-* Pi-hole
-* Quad9 DNS
-* Bash
-* systemd
+* Raspberry Pi OS
 * SSH
-* Git
-* GitLab
+* Network configuration
+* Pi-hole
+* Router DNS configuration
+* DNS blocklists
+* GitLab project
+* Generic configuration structure
 
-Future components may include:
+### Phase 2 — Automation & Dashboard
 
+**Complete**
+
+* Maintenance automation
+* Structured maintenance logging
+* Maintenance result recording
+* systemd maintenance service
+* systemd maintenance timer
+* Health-check automation
+* Structured JSON health results
+* Persistent health logging
+* systemd health service
+* systemd health timer
+* FastAPI
+* Health and maintenance API endpoints
+* Controlled API actions
+* Restricted sudo permissions
+* Controlled reboot
+* Docker
 * Homepage
+* Pi-hole dashboard integration
+* HomeSentinel dashboard
+* Control Panel
+
+### Phase 3 — Remote Access
+
+**Planned**
+
 * Tailscale
+* Remote iPhone access
+* Access-control policies
+* Secure remote dashboard access
+
+### Phase 4 — Monitoring & Notifications
+
+**Planned**
+
 * ntfy
-* GitLab CI/CD
+* Health failure notifications
+* Recovery notifications
+* Maintenance failure notifications
+
+### Phase 5 — GitLab CI/CD
+
+**Planned**
+
 * ShellCheck
-* Additional monitoring tools
+* Bash validation
+* API validation
+* Configuration validation
+* Automated tests
+* Documentation checks
+
+### Phase 6 — Storage & Reliability
+
+**Planned**
+
+* SSD migration
+* Backup strategy
+* Recovery procedure
+* SD-card fallback
+* Disaster recovery documentation
 
 ---
 
-# Setup
+## Documentation
 
-## 1. Install Raspberry Pi OS
+Detailed documentation is separated from the main project overview:
 
-Use **Raspberry Pi Imager** to install:
-
-* Raspberry Pi OS Lite 64-bit
-* Hostname: `pi-hole`
-* Local username and password
-* SSH enabled
-* Wi-Fi configured if required
-
-Ethernet is recommended for the Raspberry Pi when possible.
+* **[Architecture](docs/architecture.md)** — system design and component relationships
+* **[Setup](docs/setup.md)** — installation and deployment
+* **[Operations](docs/operations.md)** — maintenance, monitoring, commands, and troubleshooting
+* **[Security](docs/security.md)** — secrets, permissions, API security, and network exposure
+* **[Roadmap](docs/roadmap.md)** — planned features and future phases
 
 ---
 
-## 2. Connect through SSH
+## Skills Demonstrated
 
-After the Raspberry Pi starts:
+**Linux:** Raspberry Pi OS, SSH, package management, systemd
 
-```bash
-ssh <username>@pi-hole.local
-```
+**Networking:** DHCP, DNS, upstream DNS, network troubleshooting
 
-Update the operating system:
+**Automation:** Bash scripting, scheduled maintenance, health checks
 
-```bash
-sudo apt update
-sudo apt full-upgrade
-```
+**Backend:** Python, FastAPI, REST APIs, JSON
 
-Reboot:
+**Infrastructure:** Pi-hole, Docker, Homepage, service management
 
-```bash
-sudo reboot
-```
+**Security:** Least-privilege sudo, secret separation, controlled system actions
 
-Reconnect through SSH after the Raspberry Pi has restarted.
+**DevOps:** Git, GitLab, configuration templates, CI/CD planning
+
+**Monitoring:** Health checks, structured results, logging, dashboard integration
 
 ---
 
-## 3. Configure a Reserved IP Address
+## Design Principles
 
-The Raspberry Pi should have a predictable IP address because other devices will use it as their DNS server.
+### Separate source code from runtime data
 
-The recommended approach is to configure a **DHCP address reservation on the router**.
+Private configuration, credentials, logs, and generated results remain on the Raspberry Pi.
 
-The exact menu names depend on the router manufacturer.
+### Automate repetitive operations
 
-Common locations include:
-
-* Network
-* LAN
-* DHCP
-* Address Reservation
-* DHCP Reservation
-
-### Example: TP-Link routers
-
-On many TP-Link routers, the relevant settings can be found under the router's network or DHCP configuration.
-
-Create a reservation for the Raspberry Pi based on its MAC address.
-
-The Raspberry Pi should then consistently receive the same local IP address.
-
-Do not commit the actual IP address to the repository.
-
----
-
-# 4. Install Pi-hole
-
-Install Pi-hole using the official installation method.
-
-During installation:
-
-* Select the correct network interface.
-* Choose the desired upstream DNS provider.
-* Enable the web administration interface.
-* Keep the default blocklists initially.
-* Complete the installation.
-
-After installation, verify that Pi-hole is running.
-
-Example:
-
-```bash
-pihole status
-```
-
----
-
-# 5. Configure the Router DNS
-
-Configure the router's DHCP settings so that clients receive the Raspberry Pi's IP address as their DNS server.
-
-The exact configuration depends on the router manufacturer.
-
-The general configuration is:
-
-```text
-DHCP DNS Server
-       │
-       ▼
-Raspberry Pi / Pi-hole
-```
-
-After applying the configuration, reconnect client devices or renew their DHCP leases if necessary.
-
-DNS requests should then begin appearing in the Pi-hole dashboard.
-
----
-
-# 6. Update Pi-hole Gravity
-
-Pi-hole uses its Gravity database to determine which domains should be blocked.
-
-Update Gravity manually with:
-
-```bash
-sudo pihole updateGravity
-```
-
-Verify the results through the Pi-hole dashboard.
-
----
-
-# Additional Blocklists
-
-The project can use **Hagezi DNS Blocklists** as an additional blocklist source.
-
-Hagezi provides multiple blocklist variants with different levels of filtering.
-
-A suitable list can be added through the Pi-hole administration interface:
-
-```text
-Pi-hole Dashboard
-    │
-    └── Domains on Lists
-          │
-          └── Manage lists
-```
-
-After adding a blocklist, update Gravity:
-
-```bash
-sudo pihole updateGravity
-```
-
-The exact blocklist selected should depend on the desired balance between filtering and compatibility.
-
----
-
-# Maintenance Automation
-
-Routine maintenance is automated using a Bash script and systemd.
-
-The maintenance process currently performs:
-
-1. Update APT package lists.
-2. Upgrade operating system packages.
-3. Update Pi-hole.
-4. Update Pi-hole Gravity/blocklists.
-5. Record the result of the maintenance run.
-6. Store a complete maintenance log.
-
-Automatic rebooting is intentionally not performed.
-
----
-
-## Manual Maintenance
-
-The maintenance script can be executed manually:
-
-```bash
-sudo ./scripts/update.sh
-```
-
-The script returns:
-
-```text
-0 = success
-1 = failure
-```
-
-A successful run produces a result file containing:
-
-```text
-SUCCESS
-```
-
-A failed run produces:
-
-```text
-FAILURE
-```
-
----
-
-## Maintenance Script
-
-The reusable maintenance script is located at:
-
-```text
-scripts/update.sh
-```
-
-The script uses explicit error handling rather than relying on an automatic reboot or silently continuing after a failed maintenance operation.
-
-The script also records structured status information that can later be consumed by monitoring or dashboard components.
-
----
-
-# Health Monitoring
-
-HomeSentinel includes an automated health-check system for monitoring the Raspberry Pi, Pi-hole, DNS functionality, and basic system resources.
-
-The health check is implemented as a Bash script and executed through systemd.
-
-The current health-check process verifies:
-
-1. Internet connectivity.
-2. DNS resolution.
-3. Pi-hole FTL service status.
-4. Pi-hole DNS functionality.
-5. Pi-hole blocking functionality.
-6. Upstream DNS availability.
-7. Disk usage.
-8. Memory usage.
-9. CPU temperature.
-10. System uptime.
-
-The health check is designed to **run all checks even when one check fails**, allowing the final result to provide a complete picture of the system state.
-
----
-
-## Health Check Script
-
-The reusable health-check script is provided as:
-
-```text
-scripts/health_check.sh.example
-```
-
-The `.example` version is intentionally generic and can be customized for a different Raspberry Pi/Pi-hole installation.
-
-The actual runtime script remains on the Raspberry Pi and is not committed as environment-specific runtime configuration.
-
-The script returns:
-
-```text
-0 = healthy
-1 = one or more checks failed
-```
-
-Example successful output:
-
-```text
-========================================
-Pi-hole Network Health Check
-Started: YYYY-MM-DD HH:MM:SS
-========================================
-
-Health checks:
-[PASS] Internet connectivity
-[PASS] DNS resolution
-[PASS] Pi-hole service
-[PASS] Pi-hole DNS
-[PASS] Pi-hole blocking
-[PASS] Upstream DNS
-[PASS] Disk usage: XX%
-[PASS] Memory usage: XX%
-[PASS] CPU temperature: XX°C
-[PASS] System uptime: up X hours
-
-========================================
-Health: OK
-Passed: 10
-Failed: 0
-```
-
----
-
-## Health Check Logging
-
-The health-check script writes its output to:
-
-```text
-/var/log/pi-hole-network/health.log
-```
-
-The most recent health-check result is stored as structured JSON at:
-
-```text
-/var/lib/pi-hole-network/health.json
-```
-
-Example structure:
-
-```json
-{
-  "status": "ok",
-  "timestamp": "YYYY-MM-DDTHH:MM:SS+00:00",
-  "passed": 10,
-  "failed": 0,
-  "checks": {
-    "internet": "pass",
-    "dns": "pass",
-    "pihole_service": "pass",
-    "pihole_dns": "pass",
-    "pihole_blocking": "pass",
-    "upstream_dns": "pass",
-    "disk": "pass",
-    "memory": "pass",
-    "temperature": "pass",
-    "uptime": "pass"
-  }
-}
-```
-
-The JSON result is intended to provide a machine-readable source for future dashboard and notification components.
-
-Runtime logs and result files remain on the Raspberry Pi and should not be committed to GitLab.
-
----
-
-# systemd Automation
-
-systemd is used instead of cron for scheduled maintenance and health monitoring.
-
-This allows the project to take advantage of:
-
-* systemd service management
-* journal logging
-* service status reporting
-* dependency management
-* network availability requirements
-* failure detection
-* timer scheduling
-* persistent timers
-* randomized execution delays where appropriate
-
-The repository contains generic example files for both maintenance and health monitoring:
-
-```text
-systemd/
-├── pi-hole-network-health.service.example
-├── pi-hole-network-health.timer.example
-├── pi-hole-network-update.service.example
-└── pi-hole-network-update.timer.example
-```
-
----
-
-## systemd Service Model
-
-The project uses `Type=oneshot` services.
-
-A oneshot service starts, performs its task, and exits when the task is complete.
-
-This is appropriate for both maintenance and health checks because neither process needs to remain running continuously.
-
-The general architecture is:
-
-```text
-systemd timer
-      │
-      ▼
-systemd service
-      │
-      ▼
-Bash script
-      │
-      ├── Perform checks / maintenance
-      │
-      └── Record result + logs
-```
-
----
-
-# systemd Maintenance Automation
-
-The maintenance service executes:
-
-```text
-scripts/update.sh
-```
-
-Conceptually:
-
-```text
-systemd timer
-      │
-      │ scheduled
-      ▼
-systemd service
-      │
-      ▼
-scripts/update.sh
-      │
-      ├── Update operating system
-      ├── Update Pi-hole
-      └── Update blocklists
-             │
-             ▼
-       Result + log
-```
-
-The maintenance timer currently runs approximately every Sunday at 03:00, with a randomized delay.
-
----
-
-## Installing the systemd Maintenance Automation
-
-Copy the generic service and timer examples to the systemd directory:
-
-```bash
-sudo cp systemd/pi-hole-network-update.service.example \
-    /etc/systemd/system/pi-hole-network-update.service
-
-sudo cp systemd/pi-hole-network-update.timer.example \
-    /etc/systemd/system/pi-hole-network-update.timer
-```
-
-Edit the service:
-
-```bash
-sudo nano /etc/systemd/system/pi-hole-network-update.service
-```
-
-Change:
-
-```ini
-ExecStart=/path/to/project/scripts/update.sh
-```
-
-to the actual location of the script on the Raspberry Pi.
-
-For example:
-
-```ini
-ExecStart=/home/<username>/scripts/update.sh
-```
-
-Reload systemd:
-
-```bash
-sudo systemctl daemon-reload
-```
-
-Enable and start the timer:
-
-```bash
-sudo systemctl enable --now pi-hole-network-update.timer
-```
-
-Verify the timer:
-
-```bash
-systemctl status pi-hole-network-update.timer
-```
-
-List scheduled timers:
-
-```bash
-systemctl list-timers --all
-```
-
----
-
-# systemd Health Monitoring
-
-The health monitoring service executes:
-
-```text
-scripts/health_check.sh
-```
-
-The service waits for the network to become available before running the health check.
-
-Conceptually:
-
-```text
-systemd health timer
-          │
-          │ every 15 minutes
-          ▼
-systemd health service
-          │
-          ▼
-scripts/health_check.sh
-          │
-     ┌────┴───────────────┐
-     ▼                    ▼
-Health checks       JSON result
-     │
-     ▼
-health.log
-```
-
-The health-check timer is configured to:
-
-* Run once shortly after boot.
-* Run every 15 minutes after the service has completed.
-* Use `Persistent=true` so missed executions can be handled after downtime.
-
----
-
-## Installing the systemd Health Monitoring
-
-Copy the generic service and timer examples:
-
-```bash
-sudo cp systemd/pi-hole-network-health.service.example \
-    /etc/systemd/system/pi-hole-network-health.service
-
-sudo cp systemd/pi-hole-network-health.timer.example \
-    /etc/systemd/system/pi-hole-network-health.timer
-```
-
-Edit the service:
-
-```bash
-sudo nano /etc/systemd/system/pi-hole-network-health.service
-```
-
-Change:
-
-```ini
-ExecStart=/path/to/project/scripts/health_check.sh
-```
-
-to the actual location of the script on the Raspberry Pi.
-
-For example:
-
-```ini
-ExecStart=/home/<username>/scripts/health_check.sh
-```
-
-Reload systemd:
-
-```bash
-sudo systemctl daemon-reload
-```
-
-Enable and start the health-check timer:
-
-```bash
-sudo systemctl enable --now pi-hole-network-health.timer
-```
-
-Verify the timer:
-
-```bash
-systemctl status pi-hole-network-health.timer
-```
-
-Expected state:
-
-```text
-Active: active (waiting)
-```
-
-List the timer:
-
-```bash
-systemctl list-timers --all | grep pi-hole-network-health
-```
-
----
-
-# Health Monitoring Commands
-
-Manually run the health-check service:
-
-```bash
-sudo systemctl start pi-hole-network-health.service
-```
-
-Check the service:
-
-```bash
-systemctl status pi-hole-network-health.service
-```
-
-View the health-check journal:
-
-```bash
-journalctl -u pi-hole-network-health.service --no-pager
-```
-
-Check the latest structured result:
-
-```bash
-jq . /var/lib/pi-hole-network/health.json
-```
-
-View the persistent health log:
-
-```bash
-cat /var/log/pi-hole-network/health.log
-```
-
-Check the scheduled timer:
-
-```bash
-systemctl status pi-hole-network-health.timer
-```
-
-List all timers:
-
-```bash
-systemctl list-timers --all
-```
-
----
-
-# Maintenance Logs
-
-The maintenance script stores its complete log at:
-
-```text
-/var/log/pi-hole-network/update.log
-```
-
-The most recent maintenance result is stored at:
-
-```text
-/var/lib/pi-hole-network/update-result
-```
-
-Possible result values are:
-
-```text
-SUCCESS
-FAILURE
-```
-
-These files are local runtime data and should not be committed to GitLab.
-
----
-
-# Verification
-
-After installation, verify the following.
-
-### Pi-hole
-
-```bash
-pihole status
-```
-
-### DNS resolution
-
-```bash
-nslookup example.com
-```
-
-or:
-
-```bash
-dig example.com
-```
-
-### Maintenance script
-
-```bash
-sudo ./scripts/update.sh
-```
-
-### Maintenance result
-
-```bash
-cat /var/lib/pi-hole-network/update-result
-```
-
-Expected successful result:
-
-```text
-SUCCESS
-```
-
-### Health check
-
-```bash
-sudo ./scripts/health_check.sh
-```
-
-Expected successful result:
-
-```text
-Health: OK
-Passed: 10
-Failed: 0
-```
-
-### Health JSON
-
-```bash
-jq . /var/lib/pi-hole-network/health.json
-```
-
-### Maintenance timer
-
-```bash
-systemctl status pi-hole-network-update.timer
-```
-
-### Health timer
-
-```bash
-systemctl status pi-hole-network-health.timer
-```
-
-Both timers should appear as:
-
-```text
-Active: active (waiting)
-```
-
-### Scheduled executions
-
-```bash
-systemctl list-timers --all
-```
-
----
-
-# Troubleshooting
-
-## Pi-hole is not receiving DNS queries
-
-Check:
-
-```bash
-pihole status
-```
-
-Then verify that the router is advertising the Raspberry Pi as the DNS server.
-
-Also check the Pi-hole query log.
-
----
-
-## DNS resolution does not work
-
-Test the Raspberry Pi directly:
-
-```bash
-dig example.com
-```
-
-Check whether the Pi-hole service is running:
-
-```bash
-pihole status
-```
-
-Verify the configured upstream DNS provider.
-
----
-
-## Health check reports a failure
-
-Run the health check manually:
-
-```bash
-sudo ./scripts/health_check.sh
-```
-
-Then inspect the structured result:
-
-```bash
-jq . /var/lib/pi-hole-network/health.json
-```
-
-Check the systemd journal:
-
-```bash
-journalctl -u pi-hole-network-health.service --no-pager
-```
-
-The JSON result identifies which individual checks passed or failed.
-
----
-
-## Maintenance service fails
-
-Check the service:
-
-```bash
-sudo systemctl status pi-hole-network-update.service
-```
-
-View detailed logs:
-
-```bash
-sudo journalctl -u pi-hole-network-update.service
-```
-
-Also inspect:
-
-```bash
-cat /var/log/pi-hole-network/update.log
-```
-
----
-
-## Health timer does not appear to run
-
-Check:
-
-```bash
-systemctl status pi-hole-network-health.timer
-```
-
-Then:
-
-```bash
-systemctl list-timers --all
-```
-
-If necessary, reload systemd:
-
-```bash
-sudo systemctl daemon-reload
-```
-
-Then restart the timer:
-
-```bash
-sudo systemctl restart pi-hole-network-health.timer
-```
-
----
-
-# Security Considerations
-
-HomeSentinel is intended to run on a trusted home network.
-
-Important considerations include:
-
-* Use strong passwords.
-* Disable unnecessary services.
-* Keep Raspberry Pi OS updated.
-* Keep Pi-hole updated.
-* Avoid exposing Pi-hole's administration interface directly to the internet.
-* Prefer SSH keys over password authentication where practical.
-* Do not commit secrets to GitLab.
-* Do not commit private network information.
-* Keep environment-specific configuration on the Raspberry Pi.
-* Remote access should use a secure VPN rather than exposing services directly.
-
-Tailscale is planned for remote access in a future phase.
-
----
-
-# Current Architecture
-
-The current system consists of:
-
-```text
-                        Internet
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   Router    │
-                    │ DHCP + DNS  │
-                    └──────┬──────┘
-                           │
-                           │ DNS
-                           ▼
-                  ┌─────────────────┐
-                  │  Raspberry Pi   │
-                  │                 │
-                  │    Pi-hole      │
-                  │      DNS        │
-                  │                 │
-                  │ Health Monitor  │
-                  │                 │
-                  │ Maintenance     │
-                  └────────┬────────┘
-                           │
-                           │ Allowed queries
-                           ▼
-                       ┌───────┐
-                       │ Quad9 │
-                       └───┬───┘
-                           │
-                           ▼
-                       Internet
-```
-
-Maintenance and health monitoring run locally on the Raspberry Pi:
-
-```text
-                    Raspberry Pi
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-              ▼                     ▼
-       Maintenance Timer      Health Timer
-              │                     │
-              ▼                     ▼
-       Maintenance Service    Health Service
-              │                     │
-              ▼                     ▼
-         update.sh            health_check.sh
-              │                     │
-              ▼                     ▼
-        Result + Log          JSON + Log
-```
-
----
-
-# Project Roadmap
-
-## Phase 1 — Network Foundation
-
-* [x] Raspberry Pi OS Lite 64-bit
-* [x] Raspberry Pi 3B+
-* [x] Static/reserved IP
-* [x] SSH
-* [x] Pi-hole
-* [x] Quad9 upstream DNS
-* [x] Hagezi blocklists
-* [x] Router configured to use Pi-hole DNS
-* [x] GitLab repository
-* [x] Generic project documentation
-* [x] Keep environment-specific information out of GitLab
-
----
-
-## Phase 2 — Automation & Dashboard
-
-### Maintenance Automation
-
-* [x] Automated update script
-* [x] Structured maintenance logging
-* [x] Maintenance failure handling
-* [x] Maintenance result recording
-* [x] systemd maintenance service
-* [x] systemd maintenance timer
-* [x] Scheduled automatic maintenance
-
-### Health Monitoring
-
-* [x] Health-check script
-* [x] DNS resolution monitoring
-* [x] Pi-hole service monitoring
-* [x] Pi-hole DNS functionality monitoring
-* [x] Pi-hole blocking verification
-* [x] Internet connectivity monitoring
-* [x] Upstream DNS monitoring
-* [x] Disk usage monitoring
-* [x] Memory usage monitoring
-* [x] CPU temperature monitoring
-* [x] System uptime monitoring
-* [x] Health status result file
-* [x] Structured JSON health result
-* [x] Persistent health-check logging
-* [x] systemd health-check service
-* [x] systemd health-check timer
-
-### Dashboard
-
-* [ ] Install Homepage
-* [ ] CPU information
-* [ ] RAM information
-* [ ] Temperature
-* [ ] Disk usage
-* [ ] Uptime
-* [ ] Network status
-* [ ] Pi-hole status
-* [ ] Pi-hole statistics
-* [ ] Service status
-* [ ] Last health check
-* [ ] Last maintenance run
-* [ ] GitLab link
-* [ ] Router link
-* [ ] Pi-hole administration link
-* [ ] Manual health-check action
-* [ ] Manual maintenance action
-* [ ] Manual Raspberry Pi reboot action
-
----
-
-## Phase 3 — Remote Access
-
-* [ ] Install Tailscale
-* [ ] Configure secure remote access
-* [ ] Connect iPhone
-* [ ] Configure access controls
-* [ ] Test remote dashboard access
-* [ ] Test remote Pi-hole administration
-* [ ] Evaluate subnet routing if required
-
-Target architecture:
-
-```text
-              iPhone
-                 │
-                 │ Tailscale VPN
-                 ▼
-          ┌───────────────┐
-          │ Raspberry Pi  │
-          │               │
-          │   Homepage    │
-          │   Pi-hole     │
-          └───────┬───────┘
-                  │
-                  ▼
-             Home Network
-```
-
----
-
-# Phase 4 — Monitoring & Notifications
-
-Planned functionality:
-
-* [ ] Install ntfy
-* [ ] Health failure notifications
-* [ ] Recovery notifications
-* [ ] Maintenance failure notifications
-* [ ] Notification deduplication
-* [ ] Rate limiting
-* [ ] Phone notifications
-
-Target flow:
-
-```text
-              Health Check
-                   │
-          ┌────────┴────────┐
-          │                 │
-        Healthy           Failed
-          │                 │
-          ▼                 ▼
-      Dashboard       Dashboard + ntfy
-                            │
-                            ▼
-                          Phone
-```
-
----
-
-# Phase 5 — GitLab CI/CD
-
-The GitLab repository will validate generic project components without requiring access to the real Raspberry Pi.
-
-Planned checks:
-
-* [ ] ShellCheck
-* [ ] Bash syntax validation
-* [ ] Script tests
-* [ ] Homepage configuration validation
-* [ ] Documentation checks
-* [ ] Artifact generation
-* [ ] Pipeline status
-
-Planned pipeline:
-
-```text
-Git Push
-   │
-   ▼
-GitLab CI
-   │
-   ├── ShellCheck
-   │
-   ├── Bash validation
-   │
-   ├── Configuration validation
-   │
-   ├── Tests
-   │
-   └── Documentation checks
-           │
-           ▼
-         PASS
-```
-
-The CI pipeline should remain independent from the private home network.
-
----
-
-# Phase 6 — Storage & Reliability
-
-Planned improvements:
-
-* [ ] Move from microSD to SSD
-* [ ] Verify SSD stability
-* [ ] Keep microSD as a fallback
-* [ ] Document recovery procedure
-* [ ] Document backup strategy
-* [ ] Test Raspberry Pi recovery
-* [ ] Document disaster recovery process
-
-The current 64 GB microSD is sufficient for the current project.
-
-The planned SSD upgrade is primarily focused on reliability and longevity rather than storage performance.
-
----
-
-# Future Architecture
-
-As HomeSentinel grows, the planned architecture will become:
-
-```text
-                              Internet
-                                  │
-                                  ▼
-                         ┌────────────────┐
-                         │     Router     │
-                         │ DHCP / Network │
-                         └───────┬────────┘
-                                 │
-                                 ▼
-                      ┌─────────────────────┐
-                      │    Raspberry Pi     │
-                      │                     │
-                      │      Pi-hole        │
-                      │       DNS           │
-                      │                     │
-                      │      Homepage       │
-                      │     Dashboard       │
-                      │                     │
-                      │    Health Checks    │
-                      │                     │
-                      │   Maintenance       │
-                      │                     │
-                      │     Tailscale       │
-                      └──────────┬──────────┘
-                                 │
-                ┌────────────────┼────────────────┐
-                │                │                │
-                ▼                ▼                ▼
-             ntfy             GitLab            Phone
-          Notifications       CI/CD          Remote Access
-```
-
----
-
-# Design Principles
-
-HomeSentinel follows several principles:
-
-### Keep runtime data separate from source code
-
-Logs, results, credentials, and environment-specific configuration remain on the Raspberry Pi.
-
-### Prefer automation over repetitive manual work
-
-Recurring maintenance and monitoring should be handled by systemd and scripts.
+Recurring maintenance and health monitoring are handled through scripts and systemd timers.
 
 ### Fail visibly
 
-Scripts should return meaningful exit codes and record failures rather than silently continuing.
+Scripts return meaningful exit codes and record failures instead of silently continuing.
 
 ### Keep components modular
 
-Maintenance, health monitoring, dashboard functionality, notifications, and remote access should remain independently manageable.
+Monitoring, maintenance, the API, dashboard, notifications, and remote access are designed as separate components.
 
-### Avoid unnecessary exposure
+### Minimize privileges
 
-Services should not be exposed directly to the public internet when a secure private-access solution can be used.
+Infrastructure actions are exposed through predefined interfaces rather than arbitrary shell execution.
 
-### Keep the GitLab repository reusable
+### Avoid unnecessary network exposure
 
-The repository should demonstrate the architecture and implementation without exposing details specific to one home network.
+Local services are intended to remain on the home network. Secure remote access will be provided through a VPN rather than direct public exposure.
 
----
+### Keep the repository reusable
 
-# Current Status
-
-**Phase 1 — Network Foundation:** Complete
-
-**Phase 2 — Maintenance Automation:** Complete
-
-**Phase 2 — Health Monitoring:** Complete
-
-**Phase 2 — Dashboard:** Next
-
-The next implementation milestone is the installation and configuration of **Homepage** as the self-hosted dashboard.
-
-The dashboard will eventually provide:
-
-```text
-Raspberry Pi
-     │
-     ├── CPU
-     ├── RAM
-     ├── Temperature
-     ├── Disk
-     ├── Uptime
-     ├── Network
-     │
-     ├── Pi-hole status
-     ├── Pi-hole statistics
-     │
-     ├── Health status
-     ├── Last health check
-     ├── Last maintenance
-     │
-     └── Controlled actions
-           ├── Run health check
-           ├── Run maintenance
-           └── Reboot Pi
-```
-
-The health-monitoring system is now the foundation for the dashboard and future notification system.
+The GitLab project demonstrates the architecture without exposing details specific to one home network.
 
 ---
 
 ## Disclaimer
 
-This project is designed for educational and personal home-network use. DNS filtering can occasionally block domains required by websites or applications. Blocklists should therefore be selected and maintained according to the network's requirements.
+HomeSentinel is designed for educational and personal home-network use.
+
+DNS filtering can occasionally block domains required by websites or applications. Blocklists should therefore be selected and maintained according to the requirements of the network.
 
 ## Author
 
