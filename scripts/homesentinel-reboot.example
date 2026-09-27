@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# HomeSentinel controlled reboot.
+# This script exists so the API only needs permission
+# to execute this specific system action.
+
+exec /usr/bin/systemctl reboot
