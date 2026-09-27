@@ -51,9 +51,9 @@ The Raspberry Pi contains the actual deployment and environment-specific configu
                  │   HomeSentinel      │
                  │                     │
                  │   Health Checks     │
-                 │   Maintenance      │
+                 │   Maintenance       │
                  │   FastAPI           │
-                 │   Homepage         │
+                 │   Homepage          │
                  └──────────┬──────────┘
                             │
                      Allowed DNS
