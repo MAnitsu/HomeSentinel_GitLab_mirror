@@ -1,10 +1,16 @@
 import json
 import subprocess
 from pathlib import Path
-
+from network_scan import run_scan, parse_scan, save_result
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
+NETWORK_SCAN_FILE = Path(
+    os.getenv(
+        "HOMESENTINEL_NETWORK_SCAN_FILE",
+        "/var/lib/homesentinel/network-scan.json",
+    )
+)
 
 app = FastAPI(
     title="HomeSentinel API",
