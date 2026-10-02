@@ -34,9 +34,10 @@
 * [x] Homepage
 * [x] Raspberry Pi metrics
 * [x] Pi-hole integration
-* [x] HomeSentinel health
+* [x] Health status
 * [x] Maintenance status
 * [x] Control Panel
+* [x] Tailscale console link
 
 ### Network Monitoring
 
@@ -44,6 +45,15 @@
 * [x] LAN host discovery
 * [x] Structured scan results
 * [x] Network Security Scan in Control Panel
+
+### Remote Access
+
+* [x] Tailscale
+* [x] Raspberry Pi remote access
+* [x] Phone remote access
+* [x] Homepage remote access
+* [x] HomeSentinel remote access
+* [x] Pi-hole remote access
 
 ### Personal Integrations
 
@@ -54,8 +64,6 @@
 ## Next
 
 * [ ] Improve Homepage dashboard
-* [ ] Add Tailscale remote access
-* [ ] Add user access controls
 * [ ] Add ntfy notifications
 * [ ] Add recovery notifications
 * [ ] Add GitLab CI/CD validation
@@ -74,6 +82,5 @@
 * [ ] SSH security checks
 * [ ] Dependency/security monitoring
 * [ ] Network change alerts
-* [ ] More dashboard metrics
 * [ ] Historical health data
 * [ ] Additional infrastructure integrations

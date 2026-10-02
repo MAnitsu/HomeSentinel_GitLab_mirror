@@ -1,100 +1,62 @@
-# Security
+# HomeSentinel Security
 
-HomeSentinel is designed for use on a private home network.
+HomeSentinel is designed for a private home network and follows a least-privilege approach.
 
 ## Secrets
 
-Private credentials and configuration stay on the Raspberry Pi.
-
-The GitLab repository must not contain:
-
-* API keys or secrets
-* Passwords
-* Private IP addresses
-* Private hostnames
-* Runtime logs
-* Runtime JSON results
-
-Environment-specific values are stored locally in `.env` and protected with:
-
-```bash
-chmod 600 /opt/homesentinel-api/.env
-```
+* Credentials and API keys remain on the Raspberry Pi.
+* Secrets are stored in `.env` with restricted permissions.
+* Secrets and private configuration are not committed to GitLab.
+* Runtime logs and results remain local.
 
 ## API Security
 
-The FastAPI application runs as a normal Linux user, not as root.
+The HomeSentinel API runs as a non-root user.
 
-The API exposes predefined actions rather than arbitrary command execution.
+Privileged operations are restricted through `sudoers` to specific commands:
 
-For example:
+* Run health check
+* Run maintenance
+* Reboot Raspberry Pi
 
-```text
-POST /health
-POST /update
-POST /reboot
-POST /network/scan
-```
+The API does not provide arbitrary shell execution.
 
-The API does not accept arbitrary shell commands or Nmap arguments.
+## Network Security
 
-## Privileged Actions
+* Nmap scans are limited to the configured private LAN.
+* Pi-hole, Homepage and the HomeSentinel API are intended for internal use.
+* Services are not directly exposed to the public internet.
+* Docker containers are limited to their required access.
+* SSH should use strong authentication and preferably SSH keys.
 
-Only the operations that require elevated privileges are allowed through sudo:
+## Remote Access
 
-```text
-Health check service
-Maintenance service
-Controlled reboot
-```
+Tailscale provides remote access to the Raspberry Pi without exposing HomeSentinel services directly to the internet.
 
-The sudo configuration is restricted to these specific commands.
+Current remote access includes:
 
-Validate it with:
+* Homepage
+* HomeSentinel Control Panel
+* Pi-hole administration
 
-```bash
-sudo visudo -cf /etc/sudoers.d/homesentinel-api
-```
-
-## Network Scanning
-
-Nmap is currently used only for host discovery:
-
-```bash
-nmap -sn <PRIVATE-LAN-CIDR>
-```
-
-The network range is configured locally.
-
-The API cannot be used to execute arbitrary Nmap commands.
-
-The scan is intended only for networks the user owns or is authorized to test.
-
-## Network Exposure
-
-HomeSentinel services are intended to remain on the private network.
-
-The HomeSentinel API should not be exposed directly to the internet.
-
-Future remote access will use Tailscale rather than router port forwarding.
-
-## Docker
-
-Homepage runs in Docker and communicates with the HomeSentinel API.
-
-Homepage does not receive unrestricted host access or privileged Docker mode.
+Additional Tailscale users and access policies may be configured later if required.
 
 ## Current Limitations
 
-HomeSentinel is a personal infrastructure project, not a hardened enterprise platform.
+HomeSentinel is a personal infrastructure project rather than a hardened production environment.
 
-Application-level authentication for the Control Panel is not currently implemented.
+Future security improvements may include:
 
-Future security work includes:
+* SSH security auditing
+* Firewall monitoring
+* Dependency vulnerability checks
+* API authentication for privileged actions
+* Network-change alerts
+* Security-focused GitLab CI checks
+* More detailed service scanning
 
-* Tailscale access controls
-* Notifications
-* GitLab security checks
-* Additional service scanning
-* Firewall and SSH checks
-* Dependency/security monitoring
+## Security Principle
+
+HomeSentinel follows a simple rule:
+
+> Keep services private, minimize privileges, keep secrets local, and expose only the functionality that is required.

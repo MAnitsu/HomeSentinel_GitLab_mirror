@@ -2,9 +2,9 @@
 
 **Self-hosted home-network monitoring and infrastructure dashboard running on a Raspberry Pi.**
 
-HomeSentinel combines Pi-hole, automated health monitoring, maintenance automation, a local FastAPI API, Nmap network discovery, and a Homepage dashboard.
+HomeSentinel combines **Pi-hole, health monitoring, automated maintenance, FastAPI, Nmap, Docker, Homepage, and Tailscale** into a practical home-infrastructure project.
 
-The project is built as a practical Linux/infrastructure project and demonstrates networking, automation, Python, Bash, Docker, systemd, API development, and basic security monitoring.
+It demonstrates Linux administration, networking, automation, Python, Bash, systemd, APIs, containers, and security fundamentals.
 
 ---
 
@@ -14,25 +14,23 @@ The project is built as a practical Linux/infrastructure project and demonstrate
                          Internet
                             │
                             ▼
-                     ┌─────────────┐
-                     │   Router    │
-                     │ DHCP / LAN  │
-                     └──────┬──────┘
+                         Router
                             │
                             ▼
-                 ┌─────────────────────┐
-                 │    Raspberry Pi     │
-                 │                     │
-                 │      Pi-hole        │
-                 │                     │
-                 │  Health Monitoring  │
-                 │    Maintenance      │
-                 │   HomeSentinel API  │
-                 │   Nmap Discovery    │
-                 │                     │
-                 │     Homepage        │
-                 │      Docker         │
-                 └─────────────────────┘
+                  ┌──────────────────┐
+                  │   Raspberry Pi   │
+                  │                  │
+                  │ Pi-hole          │
+                  │ Health / Updates │
+                  │ FastAPI           │
+                  │ Nmap             │
+                  │ Homepage/Docker  │
+                  │ Tailscale        │
+                  └────────┬─────────┘
+                           ▲
+                           │ VPN
+                           │
+                          Phone
 ```
 
 ---
@@ -41,18 +39,15 @@ The project is built as a practical Linux/infrastructure project and demonstrate
 
 * Network-wide DNS filtering with **Pi-hole**
 * Hagezi DNS blocklists
-* Automated system and Pi-hole maintenance
-* Automated health monitoring
-* Structured JSON health results
+* Automated maintenance and health monitoring
 * systemd services and timers
 * Local **FastAPI** infrastructure API
 * Homepage dashboard
-* Docker-based dashboard deployment
-* Controlled health and maintenance actions
-* Controlled Raspberry Pi reboot
-* Least-privilege sudo configuration
+* Docker deployment
+* Controlled health, maintenance and reboot actions
 * Nmap LAN host discovery
 * Network Security Scan in the Control Panel
+* **Tailscale remote access**
 * Local Trading 212 portfolio integrations
 
 ---
@@ -65,18 +60,17 @@ The project is built as a practical Linux/infrastructure project and demonstrate
 | OS                | Raspberry Pi OS Lite |
 | DNS               | Pi-hole              |
 | Scripting         | Bash                 |
-| API               | Python, FastAPI      |
+| API               | Python / FastAPI     |
 | Scheduling        | systemd              |
 | Dashboard         | Homepage             |
 | Containers        | Docker               |
 | Network discovery | Nmap                 |
+| Remote access     | Tailscale            |
 | Version control   | GitLab               |
 
 ---
 
 ## API
-
-The HomeSentinel API currently provides:
 
 ```text
 GET  /health
@@ -93,54 +87,66 @@ POST /network/scan
 GET  /control
 ```
 
-The API is intended for local-network use.
+The API runs locally on the Raspberry Pi and exposes predefined infrastructure actions rather than arbitrary shell commands.
 
 ---
 
 ## Network Discovery
 
-HomeSentinel uses Nmap for LAN host discovery.
+HomeSentinel uses Nmap for LAN host discovery:
 
 ```text
 Control Panel
       │
       ▼
-HomeSentinel API
+FastAPI
       │
       ▼
 Nmap
       │
       ▼
-Structured JSON result
+JSON result
 ```
 
-The current scanner uses `nmap -sn` and identifies active hosts on the configured private network.
-
-It is a network inventory feature, not a vulnerability scanner.
+The scanner uses `nmap -sn` on the configured private network. It provides network inventory rather than vulnerability scanning.
 
 ---
 
 ## Dashboard
 
-Homepage provides a single place to view:
+Homepage provides:
 
 * Raspberry Pi resources
 * Pi-hole statistics
-* Health status
-* Maintenance status
+* Health and maintenance status
 * Network discovery
 * Personal integrations
+* Tailscale management
 
-The HomeSentinel Control Panel provides controlled actions such as:
+The Control Panel provides:
 
-* Run health check
-* Run maintenance
-* Run network scan
-* Reboot Raspberry Pi
+* Health checks
+* Maintenance
+* Network scans
+* Raspberry Pi reboot
 
 ---
 
-## Repository Structure
+## Remote Access
+
+Tailscale provides secure remote access to the Raspberry Pi without exposing HomeSentinel services directly to the internet.
+
+Current remote access includes:
+
+* Homepage
+* HomeSentinel Control Panel
+* Pi-hole administration
+
+Subnet routing and exit-node configuration are not required.
+
+---
+
+## Repository
 
 ```text
 HomeSentinel/
@@ -152,48 +158,40 @@ HomeSentinel/
 └── README.md
 ```
 
-The repository contains reusable source code, templates and documentation.
+GitLab contains reusable source code, templates and documentation.
 
-Private deployment configuration remains on the Raspberry Pi.
+Private configuration, credentials, logs and runtime data remain on the Raspberry Pi.
 
 ---
 
 ## Security
 
-HomeSentinel follows a few simple security principles:
-
-* No secrets in GitLab
+* No secrets committed to GitLab
 * API runs as a non-root user
 * Privileged actions use restricted sudo rules
-* No arbitrary shell commands through the API
+* No arbitrary shell execution through the API
 * Nmap scanning is limited to the configured LAN
-* Internal services are not exposed directly to the internet
-
-Remote access is planned through Tailscale.
+* Internal services are not publicly exposed
+* Remote access uses Tailscale
 
 See [`docs/security.md`](docs/security.md).
 
 ---
 
-## Project Status
+## Status
 
-**Core infrastructure:** Complete
-
-**Automation:** Complete
-
-**Health monitoring:** Complete
-
-**HomeSentinel API:** Complete
-
-**Nmap network discovery:** Complete
-
-**Dashboard:** In progress
-
-**Remote access:** Planned
-
-**Notifications:** Planned
-
-**CI/CD validation:** Planned
+| Component               | Status      |
+| ----------------------- | ----------- |
+| Pi-hole                 | Complete    |
+| Automation              | Complete    |
+| Health monitoring       | Complete    |
+| FastAPI                 | Complete    |
+| Nmap discovery          | Complete    |
+| Tailscale remote access | Complete    |
+| Homepage                | In progress |
+| Notifications           | Planned     |
+| GitLab CI/CD            | Planned     |
+| SSD migration           | Planned     |
 
 ---
 
@@ -207,30 +205,15 @@ See [`docs/security.md`](docs/security.md).
 
 ---
 
-## What This Project Demonstrates
+## Skills Demonstrated
 
-HomeSentinel is primarily a learning and portfolio project covering:
-
-* Linux administration
-* Networking and DNS
-* Bash scripting
-* Python
-* REST APIs
-* systemd
-* Docker
-* Infrastructure monitoring
-* Network discovery
-* GitLab
-* Security fundamentals
-* Automation
-
-The project is intentionally built incrementally on real hardware rather than as a purely theoretical infrastructure exercise.
+Linux administration · Networking & DNS · Bash · Python · REST APIs · systemd · Docker · Monitoring · Nmap · VPN/remote access · GitLab · Security fundamentals · Automation
 
 ---
 
 ## Author
 
-Mihai A. Nițu
+**Mihai A. Nițu**
 
 GitLab: https://gitlab.com/MAnitsu
 
