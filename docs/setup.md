@@ -10,9 +10,14 @@ The repository contains reusable code and configuration templates. Private value
 * Raspberry Pi OS Lite 64-bit
 * Ethernet connection
 * Router with DHCP configuration access
-* Git
-* Docker
-* Python 3
+
+Additional components require:
+
+* Git — for cloning the repository
+* Python 3 — for HomeSentinel API
+* Docker — for Homepage
+* Nmap — for network discovery
+* Tailscale — for remote access
 
 ## 1. Raspberry Pi
 
@@ -146,6 +151,39 @@ The latest scan is stored locally and exposed through:
 GET /network/scan
 ```
 
+## 7. Remote Access
+
+Install Tailscale on the Raspberry Pi using the official installation method.
+
+Start Tailscale:
+
+```bash
+sudo tailscale up
+```
+
+Authenticate the Raspberry Pi with the Tailscale account.
+
+Verify:
+
+```bash
+tailscale status
+tailscale ip
+```
+
+Install Tailscale on a phone and connect it to the same Tailscale network.
+
+Verify remote access to the Raspberry Pi:
+
+```text
+http://<TAILSCALE-IP>:3000
+http://<TAILSCALE-IP>:8000/control
+http://<TAILSCALE-IP>/admin
+```
+
+The current HomeSentinel setup uses direct access to the Raspberry Pi through Tailscale.
+
+Subnet routing and exit-node functionality are not required.
+
 ## Verification
 
 Check the main components:
@@ -156,6 +194,7 @@ systemctl status homesentinel-api.service
 systemctl list-timers
 docker compose ps
 curl http://127.0.0.1:8000/health
+tailscale status
 ```
 
-The system is ready when Pi-hole, the API, scheduled timers and Homepage are running normally.
+The system is ready when the components selected during installation are running normally.

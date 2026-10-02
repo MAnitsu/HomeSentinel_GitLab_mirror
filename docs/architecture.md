@@ -1,6 +1,6 @@
 # HomeSentinel Architecture
 
-HomeSentinel is a Raspberry Pi-based home-network monitoring system combining DNS filtering, automation, monitoring, network discovery, and a local dashboard.
+HomeSentinel is a Raspberry Pi-based home-network monitoring system combining DNS filtering, automation, monitoring, network discovery, remote access, and a local dashboard.
 
 ## Overview
 
@@ -25,7 +25,14 @@ HomeSentinel is a Raspberry Pi-based home-network monitoring system combining DN
                  │                     │
                  │     Homepage        │
                  │      Docker         │
+                 │                     │
+                 │     Tailscale       │
                  └─────────────────────┘
+                            ▲
+                            │
+                       Tailscale VPN
+                            │
+                         Phone
 ```
 
 ## Components
@@ -102,23 +109,27 @@ Homepage provides the dashboard for:
 * Maintenance status
 * Network discovery
 * Personal integrations
+* Tailscale management
 
-## Runtime Flow
+### Tailscale
+
+Tailscale provides secure remote access to the Raspberry Pi without exposing HomeSentinel services directly to the public internet.
+
+The current implementation uses direct access to the Raspberry Pi over its Tailscale address.
+
+Subnet routing and exit-node functionality are not required.
+
+## Remote Access Flow
 
 ```text
-systemd timer
-     │
-     ▼
-Bash script
-     │
-     ▼
-JSON result
-     │
-     ▼
-FastAPI
-     │
-     ▼
-Homepage
+Phone
+  │
+  │ Tailscale
+  ▼
+Raspberry Pi
+  ├── Homepage
+  ├── HomeSentinel API
+  └── Pi-hole
 ```
 
 ## Security Boundary
@@ -156,18 +167,18 @@ HomeSentinel/
 
 ## Current State
 
-| Component              | Status      |
-| ---------------------- | ----------- |
-| Pi-hole                | Complete    |
-| Health monitoring      | Complete    |
-| Maintenance automation | Complete    |
-| FastAPI                | Complete    |
-| Homepage               | In progress |
-| Nmap discovery         | Complete    |
-| Trading 212            | Local       |
-| Tailscale              | Planned     |
-| Notifications          | Planned     |
-| GitLab CI/CD           | Planned     |
+| Component               | Status      |
+| ----------------------- | ----------- |
+| Pi-hole                 | Complete    |
+| Health monitoring       | Complete    |
+| Maintenance automation  | Complete    |
+| FastAPI                 | Complete    |
+| Homepage                | In progress |
+| Nmap discovery          | Complete    |
+| Tailscale remote access | Complete    |
+| Trading 212             | Local       |
+| Notifications           | Planned     |
+| GitLab CI/CD            | Planned     |
 
 ## Design Principles
 
@@ -176,3 +187,4 @@ HomeSentinel/
 * Use controlled API actions instead of arbitrary commands.
 * Keep private configuration on the Raspberry Pi.
 * Keep the GitLab repository generic and reusable.
+* Use Tailscale instead of exposing internal services through router port forwarding.
