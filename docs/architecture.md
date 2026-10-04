@@ -110,6 +110,15 @@ Homepage provides the dashboard for:
 * Network discovery
 * Personal integrations
 * Tailscale management
+* HomeSentinel Control Panel
+
+The Control Panel communicates with the HomeSentinel API through the same network path used to access Homepage.
+
+When Homepage is accessed through the LAN address, the Control Panel uses the LAN API address.
+
+When Homepage is accessed through Tailscale, the Control Panel uses the Tailscale API address.
+
+This is handled by a small Homepage custom JavaScript configuration, allowing the same dashboard configuration to work in both environments without requiring a reverse proxy.
 
 ### Tailscale
 
@@ -131,6 +140,39 @@ Raspberry Pi
   ├── HomeSentinel API
   └── Pi-hole
 ```
+
+## LAN and Remote Dashboard Access
+
+HomeSentinel supports both local LAN access and remote access through Tailscale.
+
+### LAN
+
+```text
+Browser
+   │
+   ▼
+Homepage :3000
+   │
+   ▼
+HomeSentinel API :8000
+```
+
+### Tailscale
+
+```text
+Phone
+   │
+   │ Tailscale
+   ▼
+Homepage :3000
+   │
+   ▼
+HomeSentinel API :8000
+```
+
+The Homepage Control Panel dynamically determines the host address from the URL used to access the dashboard.
+
+This means the same Homepage configuration works locally and remotely without exposing the API publicly or introducing a reverse proxy.
 
 ## Security Boundary
 

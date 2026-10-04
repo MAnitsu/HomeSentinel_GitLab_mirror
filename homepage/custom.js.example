@@ -1,0 +1,18 @@
+function updateControlPanelLink() {
+    const links = document.querySelectorAll('a[href="<TAILSCALE-API-URL>"]');
+
+    links.forEach((link) => {
+        link.href = `${window.location.protocol}//${window.location.hostname}:8000/control`;
+    });
+}
+
+updateControlPanelLink();
+
+const observer = new MutationObserver(() => {
+    updateControlPanelLink();
+});
+
+observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+});

@@ -22,7 +22,7 @@ It demonstrates Linux administration, networking, automation, Python, Bash, syst
                   │                  │
                   │ Pi-hole          │
                   │ Health / Updates │
-                  │ FastAPI           │
+                  │ FastAPI          │
                   │ Nmap             │
                   │ Homepage/Docker  │
                   │ Tailscale        │
@@ -48,7 +48,7 @@ It demonstrates Linux administration, networking, automation, Python, Bash, syst
 * Nmap LAN host discovery
 * Network Security Scan in the Control Panel
 * **Tailscale remote access**
-* Local Trading 212 portfolio integrations
+* Local Trading 212 portfolio integration
 
 ---
 
@@ -130,6 +130,12 @@ The Control Panel provides:
 * Network scans
 * Raspberry Pi reboot
 
+### LAN and remote access
+
+Homepage supports both local LAN access and remote access through Tailscale.
+
+The HomeSentinel Control Panel dynamically uses the same host address through which Homepage was accessed. This allows the same dashboard configuration to work in both environments without requiring a reverse proxy.
+
 ---
 
 ## Remote Access
@@ -180,18 +186,18 @@ See [`docs/security.md`](docs/security.md).
 
 ## Status
 
-| Component               | Status      |
-| ----------------------- | ----------- |
-| Pi-hole                 | Complete    |
-| Automation              | Complete    |
-| Health monitoring       | Complete    |
-| FastAPI                 | Complete    |
-| Nmap discovery          | Complete    |
-| Tailscale remote access | Complete    |
-| Homepage                | In progress |
-| Notifications           | Planned     |
-| GitLab CI/CD            | Planned     |
-| SSD migration           | Planned     |
+| Component               | Status   |
+| ----------------------- | -------- |
+| Pi-hole                 | Complete |
+| Automation              | Complete |
+| Health monitoring       | Complete |
+| FastAPI                 | Complete |
+| Nmap discovery          | Complete |
+| Tailscale remote access | Complete |
+| Homepage                | Complete |
+| Notifications           | Planned  |
+| GitLab CI/CD            | Planned  |
+| SSD migration           | Planned  |
 
 ---
 

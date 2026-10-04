@@ -52,6 +52,7 @@
                   format: date
 
     - Control Panel:
-        href: http://<PI-IP>:8000/control
+        id: homesentinel-control-panel
+        href: http://<TAILSCALE-IP>:8000/control
         description: HomeSentinel system controls
         icon: mdi-console
