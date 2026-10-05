@@ -211,12 +211,6 @@ See [`docs/security.md`](docs/security.md).
 
 ---
 
-## Skills Demonstrated
-
-Linux administration · Networking & DNS · Bash · Python · REST APIs · systemd · Docker · Monitoring · Nmap · VPN/remote access · GitLab · Security fundamentals · Automation
-
----
-
 ## Author
 
 **Mihai A. Nițu**
