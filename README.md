@@ -48,6 +48,7 @@ It demonstrates Linux administration, networking, automation, Python, Bash, syst
 * Nmap LAN host discovery
 * Network Security Scan in the Control Panel
 * **Tailscale remote access**
+* Remote Pi-hole DNS filtering through Tailscale
 * Local Trading 212 portfolio integration
 
 ---
@@ -147,8 +148,35 @@ Current remote access includes:
 * Homepage
 * HomeSentinel Control Panel
 * Pi-hole administration
+* Pi-hole DNS filtering
 
-Subnet routing and exit-node configuration are not required.
+### Remote DNS filtering
+
+Tailscale is configured to use the HomeSentinel Pi-hole instance as a tailnet DNS nameserver.
+
+When a device is connected to Tailscale:
+
+```text
+Remote Device
+      │
+      │ Tailscale
+      ▼
+Raspberry Pi
+      │
+      ▼
+   Pi-hole
+      │
+      ▼
+ Upstream DNS
+```
+
+DNS requests are therefore filtered by the same Pi-hole blocklists used by the home network.
+
+Normal internet traffic does not need to be routed through the Raspberry Pi. Tailscale provides the path to Pi-hole for DNS resolution while the device continues using its normal network connection for internet traffic.
+
+Subnet routing and exit-node configuration are not required for this setup.
+
+DNS is not exposed through router port forwarding.
 
 ---
 
@@ -178,7 +206,9 @@ Private configuration, credentials, logs and runtime data remain on the Raspberr
 * No arbitrary shell execution through the API
 * Nmap scanning is limited to the configured LAN
 * Internal services are not publicly exposed
+* DNS is not exposed through router port forwarding
 * Remote access uses Tailscale
+* Tailscale provides the remote DNS path to Pi-hole
 
 See [`docs/security.md`](docs/security.md).
 
@@ -194,6 +224,7 @@ See [`docs/security.md`](docs/security.md).
 | FastAPI                 | Complete |
 | Nmap discovery          | Complete |
 | Tailscale remote access | Complete |
+| Remote Pi-hole DNS      | Complete |
 | Homepage                | Complete |
 | Notifications           | Planned  |
 | GitLab CI/CD            | Planned  |

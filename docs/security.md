@@ -26,6 +26,8 @@ The API does not provide arbitrary shell execution.
 * Nmap scans are limited to the configured private LAN.
 * Pi-hole, Homepage and the HomeSentinel API are intended for internal use.
 * Services are not directly exposed to the public internet.
+* There is no router port forwarding for DNS port 53.
+* Router DMZ is disabled.
 * Docker containers are limited to their required access.
 * SSH should use strong authentication and preferably SSH keys.
 
@@ -38,6 +40,11 @@ Current remote access includes:
 * Homepage
 * HomeSentinel Control Panel
 * Pi-hole administration
+* Pi-hole DNS for connected Tailscale clients
+
+Tailscale DNS allows remote devices to use Pi-hole for DNS filtering without routing their normal internet traffic through the Raspberry Pi.
+
+Subnet routing and exit-node configuration are not required.
 
 Additional Tailscale users and access policies may be configured later if required.
 

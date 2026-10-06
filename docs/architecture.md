@@ -128,6 +128,34 @@ The current implementation uses direct access to the Raspberry Pi over its Tails
 
 Subnet routing and exit-node functionality are not required.
 
+## Remote Pi-hole DNS
+
+Tailscale is also configured to use the Raspberry Pi as a DNS nameserver for connected clients.
+
+The remote DNS flow is:
+
+```text
+Remote Device
+      │
+      │ Tailscale
+      ▼
+Raspberry Pi
+      │
+      ▼
+   Pi-hole
+      │
+      ▼
+ Upstream DNS
+```
+
+This allows connected remote devices to use the same Pi-hole filtering and blocklists as devices on the home network.
+
+Only DNS requests use the Pi-hole path.
+
+Normal internet traffic continues through the remote device's existing network connection. The Raspberry Pi is not configured as a Tailscale exit node.
+
+This provides remote DNS filtering without routing all device traffic through the home network.
+
 ## Remote Access Flow
 
 ```text
@@ -209,18 +237,20 @@ HomeSentinel/
 
 ## Current State
 
-| Component               | Status      |
-| ----------------------- | ----------- |
-| Pi-hole                 | Complete    |
-| Health monitoring       | Complete    |
-| Maintenance automation  | Complete    |
-| FastAPI                 | Complete    |
-| Homepage                | In progress |
-| Nmap discovery          | Complete    |
-| Tailscale remote access | Complete    |
-| Trading 212             | Local       |
-| Notifications           | Planned     |
-| GitLab CI/CD            | Planned     |
+| Component               | Status   |
+| ----------------------- | -------- |
+| Pi-hole                 | Complete |
+| Health monitoring       | Complete |
+| Maintenance automation  | Complete |
+| FastAPI                 | Complete |
+| Homepage                | Complete |
+| Nmap discovery          | Complete |
+| Tailscale remote access | Complete |
+| Remote Pi-hole DNS      | Complete |
+| Trading 212             | Local    |
+| Notifications           | Planned  |
+| GitLab CI/CD            | Planned  |
+| SSD migration           | Planned  |
 
 ## Design Principles
 
@@ -230,3 +260,5 @@ HomeSentinel/
 * Keep private configuration on the Raspberry Pi.
 * Keep the GitLab repository generic and reusable.
 * Use Tailscale instead of exposing internal services through router port forwarding.
+* Use Pi-hole as the remote DNS resolver for authorized Tailscale clients.
+* Do not route all remote client traffic through the Raspberry Pi unless an exit-node configuration is intentionally introduced.
